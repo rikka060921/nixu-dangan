@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>逆序档案｜离线试玩版</title>
+  <style>
+    :root{--ink:#131410;--panel:#20211b;--paper:#e8dfc9;--muted:#918a7a;--red:#c94735;--gold:#c7a55d;--green:#7e9c77;--line:#45443a}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--ink);color:var(--paper)}
+    body{font-family:"Songti SC","STSong",Georgia,serif;background:radial-gradient(circle at 80% 0,#351713 0,transparent 27%),linear-gradient(145deg,#171812,#0b0c09);padding:22px}
+    button{font:inherit}.app{max-width:1180px;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:16px}
+    .brand{display:flex;gap:13px;align-items:center}.seal{width:46px;height:46px;display:grid;place-items:center;border:2px solid var(--red);color:var(--red);font-size:25px;box-shadow:inset 0 0 0 3px var(--ink),inset 0 0 0 4px #771e17}
+    .eyebrow{margin:0 0 4px;font:700 9px ui-monospace,monospace;letter-spacing:.2em;color:#7e786b}.brand h1{margin:0;font-size:23px;letter-spacing:.18em}.top-actions{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:12px}
+    .linkbtn{border:0;border-bottom:1px solid #686255;background:none;color:#bbb29e;cursor:pointer}.linkbtn.music-on{color:var(--gold);border-color:var(--gold)}.casebar{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:17px 0}.goal{font-size:14px}.goal b{color:var(--red);margin-right:12px}
+    .stats{display:flex;border:1px solid var(--line)}.stat{padding:7px 13px;min-width:84px;border-right:1px solid var(--line)}.stat:last-child{border:0}.stat small{display:block;color:#777064;font-size:9px}.stat strong{font:14px ui-monospace,monospace}.gold{color:var(--gold)}.red{color:#e45c49}.green{color:#90b388}
+    .help{display:flex;gap:12px;align-items:center;padding:9px 12px;border:1px solid #5f5337;background:#241f14;color:#bdb39d;font-size:12px}.help b{color:var(--paper)}.help span{background:var(--gold);color:var(--ink);padding:3px 6px;font-weight:700}.help button{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:18px}
+    .threat{display:grid;grid-template-columns:70px 1fr minmax(260px,.7fr);align-items:center;margin-top:12px;border:1px solid #6b3029;background:linear-gradient(90deg,#341814,#171813)}.threat-glyph{height:72px;display:grid;place-items:center;border-right:1px solid #6b3029;color:#e45c49;font-size:29px}.threat h2{margin:0 16px;font-size:18px;font-weight:500}.intent{align-self:stretch;display:flex;flex-direction:column;justify-content:center;border-left:1px solid var(--line);padding:10px 16px}.intent small{color:#766f62}.intent strong{font-size:11px;margin-top:4px}
+    .timeline{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin:15px 0}.era{padding:0;border:1px solid var(--line);background:#181914;color:inherit;text-align:left;min-height:168px;transition:.18s}.era.target{border-color:#766442;cursor:crosshair}.era.target:hover{transform:translateY(-2px);border-color:var(--gold)}.era-head{display:grid;grid-template-columns:28px 1fr;padding:9px 12px;border-bottom:1px solid var(--line);background:#11120e}.era-head span{grid-row:span 2;color:#585348;font:17px ui-monospace,monospace}.era-head strong{font-size:14px;letter-spacing:.18em}.era-head small{color:#696357;font-size:9px}.drop{min-height:116px;padding:10px;display:flex;flex-direction:column;justify-content:center;gap:7px}.hint{text-align:center;color:#565145;font-size:10px;letter-spacing:.1em}
+    .event,.placed{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:8px 9px;background:#2a241e;border-left:3px solid var(--red);font-size:11px}.event small{color:#c06a5e}.event strong{text-align:right}.placed{background:#26261f;border-left-color:var(--accent)}.placed i{display:grid;place-items:center;width:20px;height:20px;border:1px solid var(--accent);color:var(--accent);font-style:normal}.placed small{color:#736d60}.因{--accent:#7e9c77}.证{--accent:#c7a55d}.改{--accent:#788da5}.锚{--accent:#b3a98f}.悖{--accent:#b84c51}
+    .handbar{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding:13px 0 10px}.handbar h2{margin:0;font-size:16px;font-weight:500}.energy{font:11px ui-monospace,monospace;color:var(--muted)}.energy b{display:inline-grid;place-items:center;width:28px;height:28px;border:1px solid var(--gold);border-radius:50%;color:var(--gold);font-size:15px}.hand{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.card{min-height:203px;padding:10px;border:1px solid #4c4b40;border-top:3px solid var(--accent);background:linear-gradient(145deg,#2a2a23,#181914);color:var(--paper);text-align:left;cursor:pointer;box-shadow:0 12px 22px #0005;transition:.18s}.card:hover:not(:disabled),.card.selected{transform:translateY(-7px);border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 16px 28px #0008}.card:disabled{opacity:.28;cursor:not-allowed}.card-top{display:flex;justify-content:space-between;align-items:center}.cost{display:grid;place-items:center;width:27px;height:27px;border:1px solid var(--accent);border-radius:50%;color:var(--accent);font:14px ui-monospace,monospace}.kind{font-size:9px;color:#8e8777}.art{height:52px;margin:8px 0;display:grid;place-items:center;border:1px solid #ffffff12;background:radial-gradient(circle,#ffffff0d,transparent 65%);color:var(--accent);font-size:24px}.card h3{margin:0 0 6px;font-size:15px}.card p{margin:0;color:#b8af9b;font-size:10px;line-height:1.55}.card em{display:block;border-top:1px solid #ffffff12;margin-top:7px;padding-top:6px;color:#6f695d;font-size:8px;font-style:normal}
+    .resolvebar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:14px}.resolvebar p{font-size:11px;color:#797264}.primary{display:flex;justify-content:space-between;gap:28px;min-width:190px;padding:11px 16px;border:1px solid var(--red);background:#752019;color:#f4ddd2;cursor:pointer;box-shadow:5px 5px 0 #310d0a}.primary:disabled{border-color:#47463e;background:#22231e;color:#5d584d;box-shadow:none;cursor:not-allowed}
+    .modal{position:fixed;inset:0;z-index:5;display:none;place-items:center;padding:20px;background:#050504e8}.modal.show{display:grid}.result{max-width:480px;padding:32px;border:1px solid #625c4e;background:linear-gradient(145deg,#282820,#11120e);text-align:center;box-shadow:0 30px 80px #000}.bigseal{width:76px;height:76px;margin:18px auto;display:grid;place-items:center;border:3px double var(--green);color:var(--green);font-size:38px}.bigseal.lose{border-color:var(--red);color:var(--red)}.result h2{font-size:25px;font-weight:500}.result p{color:#aaa18e;font-size:13px;line-height:1.6}.result .primary{margin:20px auto 0}.log{padding:10px;border:1px solid var(--line);text-align:left;color:#777064;font-size:10px;line-height:1.6}
+    @media(max-width:850px){body{padding:14px}.hand{overflow-x:auto;grid-template-columns:repeat(5,180px);padding-bottom:12px}.casebar{align-items:flex-start}.stats{display:grid;grid-template-columns:repeat(2,1fr)}.stat:nth-child(2){border-right:0}.stat:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+    @media(max-width:620px){.top{align-items:flex-start}.top-actions{flex-wrap:wrap;justify-content:flex-end;max-width:155px}.casebar{flex-direction:column}.stats{width:100%;grid-template-columns:repeat(4,1fr)}.stat{min-width:0;padding:7px}.stat:nth-child(2){border-right:1px solid var(--line)}.stat:nth-child(-n+2){border-bottom:0}.threat{grid-template-columns:55px 1fr}.threat-glyph{width:55px}.intent{grid-column:span 2;border-left:0;border-top:1px solid var(--line)}.timeline{grid-template-columns:1fr}.era{min-height:135px}.drop{min-height:83px}.resolvebar{align-items:stretch;flex-direction:column}.primary{width:100%}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="top"><div class="brand"><div class="seal">逆</div><div><p class="eyebrow">OFFLINE CAUSAL DECKBUILDING PROTOTYPE</p><h1>逆序档案</h1></div></div><div class="top-actions"><span id="roundLabel">灾难循环 01 / 03</span><button class="linkbtn" id="musicBtn" aria-pressed="false">音乐：关</button><button class="linkbtn" id="helpBtn">玩法说明</button><button class="linkbtn" id="resetBtn">重新开始</button></div></header>
+    <section class="casebar"><div class="goal"><b>档案 · 甲七</b>让证人活下来，拼出 8 点真相</div><div class="stats"><div class="stat"><small>时间线</small><strong id="integrity">10/10</strong></div><div class="stat"><small>真相</small><strong id="truth" class="gold">0/8</strong></div><div class="stat"><small>悖论</small><strong id="paradox" class="red">0/6</strong></div><div class="stat"><small>证人</small><strong id="witness" class="green">存活</strong></div></div></section>
+    <aside class="help" id="help"><span>玩法</span><div><b>先点一张手牌，再点一个时段。</b> 时间从过去向未来结算；位置会改变事件结果。每轮只有 3 点能量。</div><button id="closeHelp">×</button></aside>
+    <section class="threat"><div class="threat-glyph" id="glyph">火</div><h2 id="incidentName">固定事件：仓库火灾</h2><div class="intent"><small>已知结果</small><strong id="intent">若无人干预：证人死亡，时间线 -4</strong></div></section>
+    <section class="timeline" id="timeline"></section>
+    <section><div class="handbar"><div><p class="eyebrow">可用行动</p><h2>本轮手牌</h2></div><div class="energy"><b id="energy">3</b> / 3 能量</div></div><div class="hand" id="hand"></div><div class="resolvebar"><p id="tip">选择手牌开始改写</p><button class="primary" id="resolveBtn" disabled><span>执行时间线</span><b>→</b></button></div></section>
+  </main>
+  <div class="modal" id="modal"><div class="result"><p class="eyebrow" id="resultEyebrow"></p><div class="bigseal" id="resultSeal">真</div><h2 id="resultTitle"></h2><p id="resultText"></p><div class="log" id="log"></div><button class="primary" id="againBtn"><span>再次进入循环</span><b>↻</b></button></div></div>
+  <script>
+    const C={
+      seal:{id:'seal',name:'封锁仓库',kind:'因',cost:1,text:'在火灾前打出：证人不会死，时间线少受 2 点损伤。',flavor:'先改变门，再改变结局。'},
+      rescue:{id:'rescue',name:'紧急疏散',kind:'因',cost:1,text:'置于「现在」：救出证人；其他时段打出则无效。',flavor:'正确的行动，也需要正确的时刻。'},
+      ledger:{id:'ledger',name:'账本残页',kind:'证',cost:1,text:'获得 2 点真相。若证人仍存活，再获得 1 点。',flavor:'灰烬没有烧掉所有数字。'},
+      clarify:{id:'clarify',name:'澄清谣言',kind:'证',cost:1,text:'在审讯前打出：证词可信度 +1。',flavor:'事实需要赶在声音前面。'},
+      memory:{id:'memory',name:'真实记忆',kind:'改',cost:2,text:'获得 3 点真相与 2 点悖论；置于「过去」时额外获得 1 点真相。',flavor:'记忆不是证据，但它可以重写证据。'},
+      anchor:{id:'anchor',name:'时间锚',kind:'锚',cost:1,text:'在档案销毁前打出：本轮真相不会被清除，并降低 1 点悖论。',flavor:'把一页纸钉在世界上。'},
+      alibi:{id:'alibi',name:'伪造口供',kind:'悖',cost:1,text:'可信度 +2，真相 +1，悖论 +2。',flavor:'好用的谎言，通常只好用一次。'},
+      blackout:{id:'blackout',name:'提前停电',kind:'改',cost:1,text:'置于「过去」：使本轮固定事件失效；悖论 +2。',flavor:'让事故发生在事故之前。'}
+    };
+    const hands=[['seal','rescue','ledger','memory','alibi'],['clarify','ledger','anchor','memory','alibi'],['anchor','ledger','memory','blackout','alibi']];
+    const incidents=[
+      {name:'固定事件：仓库火灾',era:2,intent:'若无人干预：证人死亡，时间线 -4',glyph:'火'},
+      {name:'固定事件：监察官审讯',era:1,intent:'若可信度不足：时间线 -2；否则真相 +2',glyph:'审'},
+      {name:'固定事件：档案销毁',era:2,intent:'若真相未被锚定：失去 3 点真相',glyph:'毁'}
+    ];
+    const eraNames=['过去','现在','未来'],eraNotes=['已发生','正在发生','尚可干预'],kindNames={因:'创造条件',证:'揭露信息',改:'改写时序',锚:'固定历史',悖:'高风险收益'};
+    let s;
+    let audioCtx=null,musicTimer=null,musicBus=null,musicStep=0;
+    const $=id=>document.getElementById(id);
+    function reset(){s={round:0,integrity:10,truth:0,paradox:0,witness:true,cred:0,energy:3,selected:null,placed:[]};$('modal').classList.remove('show');render()}
+    function render(){
+      const inc=incidents[s.round],used=new Set(s.placed.map(x=>x.id));
+      $('roundLabel').textContent=`灾难循环 0${s.round+1} / 03`;$('integrity').textContent=`${s.integrity}/10`;$('truth').textContent=`${s.truth}/8`;$('paradox').textContent=`${s.paradox}/6`;$('witness').textContent=s.witness?'存活':'死亡';$('witness').className=s.witness?'green':'red';
+      $('glyph').textContent=inc.glyph;$('incidentName').textContent=inc.name;$('intent').textContent=inc.intent;$('energy').textContent=s.energy;
+      $('timeline').innerHTML=eraNames.map((name,era)=>`<button class="era ${s.selected?'target':''}" data-era="${era}"><div class="era-head"><span>0${era+1}</span><strong>${name}</strong><small>${eraNotes[era]}</small></div><div class="drop">${s.placed.filter(x=>x.era===era).map(x=>`<div class="placed ${x.kind}" data-remove="${x.uid}"><i>${x.kind}</i><strong>${x.name}</strong><small>点击撤回</small></div>`).join('')}${inc.era===era?`<div class="event"><small>不可移动</small><strong>${inc.name.replace('固定事件：','')}</strong></div>`:''}${!s.placed.some(x=>x.era===era)&&inc.era!==era?`<span class="hint">${s.selected?'放到这里':'等待行动'}</span>`:''}</div></button>`).join('');
+      $('hand').innerHTML=hands[s.round].map(id=>{const c=C[id],disabled=used.has(id)||s.energy<c.cost;return `<button class="card ${c.kind} ${s.selected===id?'selected':''}" data-card="${id}" ${disabled?'disabled':''}><div class="card-top"><span class="cost">${c.cost}</span><span class="kind">${c.kind} · ${kindNames[c.kind]}</span></div><div class="art">${c.name[0]}</div><h3>${c.name}</h3><p>${c.text}</p><em>${c.flavor}</em></button>`}).join('');
+      $('resolveBtn').disabled=!s.placed.length;$('tip').textContent=s.selected?`已选择「${C[s.selected].name}」— 请放入一个时段`:s.placed.length?`已编排 ${s.placed.length} 个行动，可执行时间线`:'选择手牌开始改写';
+      document.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{s.selected=s.selected===b.dataset.card?null:b.dataset.card;$('help').style.display='none';render()});
+      document.querySelectorAll('[data-era]').forEach(b=>b.onclick=e=>{if(e.target.closest('[data-remove]'))return;if(!s.selected)return;const c=C[s.selected];s.placed.push({...c,era:+b.dataset.era,uid:c.id+Date.now()});s.energy-=c.cost;s.selected=null;render()});
+      document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=e=>{e.stopPropagation();const x=s.placed.find(c=>c.uid===b.dataset.remove);s.energy+=x.cost;s.placed=s.placed.filter(c=>c.uid!==x.uid);render()});
+    }
+    function resolve(){
+      const inc=incidents[s.round],m=[];let sealed=false,rescued=false,anchored=false,cancelled=false;
+      [...s.placed].sort((a,b)=>a.era-b.era).forEach(c=>{const before=c.era<=inc.era;
+        if(c.id==='seal'&&before){sealed=true;m.push('封锁完成：火势被隔绝。')}
+        if(c.id==='rescue'){if(c.era===1){rescued=true;m.push('疏散时机正确：证人撤离。')}else m.push('疏散发生在错误时段，没有改变结果。')}
+        if(c.id==='ledger'){const g=s.witness?3:2;s.truth+=g;m.push(`残页拼合：真相 +${g}。`)}
+        if(c.id==='clarify'&&before){s.cred++;m.push('谣言被澄清：可信度 +1。')}
+        if(c.id==='memory'){const g=c.era===0?4:3;s.truth+=g;s.paradox+=2;m.push(`记忆覆写现实：真相 +${g}，悖论 +2。`)}
+        if(c.id==='anchor'&&before){anchored=true;s.paradox=Math.max(0,s.paradox-1);m.push('历史已锚定：悖论 -1。')}
+        if(c.id==='alibi'){s.cred+=2;s.truth++;s.paradox+=2;m.push('伪造口供奏效：可信度 +2，悖论 +2。')}
+        if(c.id==='blackout'){if(c.era===0){cancelled=true;s.paradox+=2;m.push('停电移至过去：固定事件失效，悖论 +2。')}else m.push('停电来得太晚，事件仍会发生。')}
+      });
+      if(!cancelled&&s.round===0){if(sealed||rescued){s.witness=true;s.truth++;m.push('火灾发生，但证人存活。真相 +1。')}else{s.witness=false;s.integrity-=4;m.push('火灾吞没仓库：证人死亡，时间线 -4。')}if(sealed)s.integrity=Math.min(10,s.integrity+1)}
+      if(!cancelled&&s.round===1){if(s.witness&&s.cred>=1){s.truth+=2;m.push('证词被采纳：真相 +2。')}else{s.integrity-=2;m.push('审讯击穿叙事：时间线 -2。')}}
+      if(!cancelled&&s.round===2){if(anchored)m.push('销毁发生，但被锚定的真相保留下来。');else{s.truth=Math.max(0,s.truth-3);m.push('档案化为灰烬：真相 -3。')}}
+      const lose=s.integrity<=0||s.paradox>=6,final=s.round===2;if(lose||final){showResult(!lose&&s.truth>=8,m);return}s.round++;s.energy=3;s.selected=null;s.placed=[];render()
+    }
+    function showResult(win,m){$('resultEyebrow').textContent=win?'CASE CLOSED · HISTORY RESTORED':'TIMELINE COLLAPSED';$('resultSeal').textContent=win?'真':'悖';$('resultSeal').className='bigseal '+(win?'':'lose');$('resultTitle').textContent=win?'真相已被固定':'这条时间线无法成立';$('resultText').textContent=win?`你以 ${s.truth} 点真相完成调查，证人${s.witness?'存活':'未能生还'}。`:s.paradox>=6?'悖论达到临界点，所有改写互相否定。':`最终只有 ${s.truth} 点真相。你需要更早地建立因果，或用时间锚保护证据。`;$('log').innerHTML=m.join('<br>');$('modal').classList.add('show');render()}
+    function pluck(freq,when,volume=.05,duration=2.8){
+      if(!audioCtx||!musicBus)return;
+      const osc=audioCtx.createOscillator(),gain=audioCtx.createGain(),filter=audioCtx.createBiquadFilter();
+      osc.type='triangle';osc.frequency.setValueAtTime(freq,when);osc.detune.setValueAtTime(-5+Math.random()*10,when);
+      filter.type='lowpass';filter.frequency.setValueAtTime(1500,when);filter.Q.value=.7;
+      gain.gain.setValueAtTime(.0001,when);gain.gain.exponentialRampToValueAtTime(volume,when+.035);gain.gain.exponentialRampToValueAtTime(.0001,when+duration);
+      osc.connect(filter).connect(gain).connect(musicBus);osc.start(when);osc.stop(when+duration+.05);
+    }
+    function musicPulse(){
+      if(!audioCtx)return;
+      const scale=[146.83,164.81,196,220,246.94],now=audioCtx.currentTime+.04;
+      pluck(scale[musicStep%scale.length],now,.052,3.1);
+      if(musicStep%2===0)pluck(scale[(musicStep+2)%scale.length]*2,now+.42,.018,2.2);
+      if(musicStep%4===0)pluck(73.42,now,.025,4.4);
+      musicStep++;
+    }
+    async function toggleMusic(){
+      const btn=$('musicBtn');
+      if(audioCtx){
+        clearInterval(musicTimer);musicTimer=null;
+        const old=audioCtx;audioCtx=null;musicBus=null;
+        await old.close();btn.textContent='音乐：关';btn.classList.remove('music-on');btn.setAttribute('aria-pressed','false');return;
+      }
+      const AudioContext=window.AudioContext||window.webkitAudioContext;
+      if(!AudioContext){btn.textContent='设备不支持音乐';btn.disabled=true;return}
+      audioCtx=new AudioContext();musicBus=audioCtx.createGain();musicBus.gain.value=.72;
+      const masterFilter=audioCtx.createBiquadFilter();masterFilter.type='lowpass';masterFilter.frequency.value=2100;
+      musicBus.connect(masterFilter).connect(audioCtx.destination);musicStep=0;musicPulse();musicTimer=setInterval(musicPulse,1650);
+      btn.textContent='音乐：开';btn.classList.add('music-on');btn.setAttribute('aria-pressed','true');
+    }
+    $('resolveBtn').onclick=resolve;$('resetBtn').onclick=reset;$('againBtn').onclick=reset;$('musicBtn').onclick=toggleMusic;$('helpBtn').onclick=()=>{$('help').style.display='flex'};$('closeHelp').onclick=()=>{$('help').style.display='none'};reset();
+  </script>
+</body>
+</html>
