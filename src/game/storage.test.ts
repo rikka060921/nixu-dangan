@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { MAP_TEMPLATES } from '../content/gameContent'
 import { createRun } from '../domain/run'
 import type { GameState } from '../domain/types'
-import { LEGACY_SAVE_KEY, loadSession, VERSION3_SAVE_KEY } from './storage'
+import { LEGACY_SAVE_KEY, loadSession, VERSION3_SAVE_KEY, VERSION4_SAVE_KEY } from './storage'
 
 describe('legacy save migration', () => {
   beforeEach(() => localStorage.clear())
@@ -47,6 +47,7 @@ describe('legacy save migration', () => {
 
     const migrated = loadSession()
     expect(migrated?.run?.timeline).toBe(21)
+    expect(migrated?.run?.layers).toHaveLength(18)
     expect(migrated?.run?.layers[0][0].description).toBe('旧版描述')
     expect(migrated?.notice).toContain('V2')
     expect(migrated?.screen.name).toBe('shop')
@@ -105,5 +106,36 @@ describe('legacy save migration', () => {
     expect(migrated?.run?.currentNode).toBe('curator')
     expect(migrated?.battle?.encounterId).toBe('curator')
     expect(migrated?.notice).toContain('三幕')
+  })
+
+  it('migrates V4 string decks into individually upgradeable cards', () => {
+    const run = createRun('v4-upgrade', 'standard', {
+      runs: 0,
+      wins: 0,
+      ink: 0,
+      tutorialDone: false,
+      lastMode: 'standard',
+    })
+    localStorage.setItem(VERSION4_SAVE_KEY, JSON.stringify({
+      format: 'reverse-archive-save',
+      version: 4,
+      state: {
+        screen: { name: 'rest', removing: false },
+        meta: { runs: 0, wins: 0, ink: 0, tutorialDone: false, lastMode: 'standard' },
+        selectedMode: 'standard',
+        seedInput: 'v4-upgrade',
+        run: { ...run, deck: ['seal', 'memory'] },
+        battle: null,
+        resumable: null,
+      },
+    }))
+
+    const migrated = loadSession()
+    expect(migrated?.run?.deck).toEqual([
+      { cardId: 'seal', upgraded: false },
+      { cardId: 'memory', upgraded: false },
+    ])
+    expect(migrated?.screen).toEqual({ name: 'rest', removing: false, upgrading: false })
+    expect(migrated?.notice).toContain('卡牌升级')
   })
 })

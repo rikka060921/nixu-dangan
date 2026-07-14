@@ -512,6 +512,8 @@ button:disabled {
 
 .card:hover:not(:disabled),
 .card.is-selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 15px 25px #0008; transform: translateY(-5px); }
+.card.is-upgraded { background: linear-gradient(145deg, #373221, #191914); box-shadow: inset 0 0 24px #c9a65d12, 0 10px 20px #0005; }
+.card.is-upgraded .card-name { color: #e2c879; }
 .card:disabled { opacity: 0.25; }
 .card-topline { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; color: #8b8475; font-size: 7px; }
 .card-cost { display: grid; width: 27px; height: 27px; flex: 0 0 auto; place-items: center; border: 1px solid var(--accent); border-radius: 50%; color: var(--accent); font: 13px ui-monospace, monospace; }
@@ -550,6 +552,13 @@ button:disabled {
 .remove-grid { display: grid; margin: 22px 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .remove-card { min-width: 0; padding: 12px 10px; overflow: hidden; border: 1px solid var(--line); border-top: 2px solid var(--accent); background: #1b1c17; color: var(--paper); cursor: pointer; text-overflow: ellipsis; white-space: nowrap; }
 .remove-card:hover { border-color: var(--red); }
+.upgrade-grid { display: grid; margin: 22px 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.upgrade-card { display: grid; min-width: 0; gap: 7px; padding: 14px; border: 1px solid var(--line); border-left: 3px solid var(--accent); background: #191a15; color: var(--paper); cursor: pointer; text-align: left; }
+.upgrade-card:hover { border-color: var(--gold); background: #222218; }
+.upgrade-card span { font-size: 13px; }
+.upgrade-card small { color: #81796a; font-size: 9px; line-height: 1.5; }
+.upgrade-card b { padding-top: 7px; border-top: 1px solid #4c4637; color: #d0b66e; font-size: 10px; font-weight: 500; line-height: 1.55; }
+.empty-state { margin: 22px 0; padding: 18px; border: 1px dashed var(--line); color: #8d8575; text-align: center; }
 
 .reward { width: min(1050px, 100%); text-align: center; }
 .reward .lead { color: #8e8676; font-size: 12px; }
@@ -669,6 +678,7 @@ button:disabled {
   .choice { grid-template-columns: 40px minmax(0, 1fr); }
   .choice em { grid-column: 2; }
   .remove-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .upgrade-grid { grid-template-columns: 1fr; }
   .shop-grid { grid-template-columns: 1fr; }
   .manual { padding: 20px; }
   .manual-grid { grid-template-columns: 1fr; }

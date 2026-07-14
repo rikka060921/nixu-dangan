@@ -25,7 +25,7 @@ function titleState(): GameState {
 }
 
 function winningBattle(): BattleState {
-  const hand = [{ cardId: 'ledger' as const, uid: 'ledger-win' }]
+  const hand = [{ cardId: 'ledger' as const, upgraded: false, uid: 'ledger-win' }]
   return {
     encounterId: 'fire',
     encounterTarget: 1,
@@ -121,14 +121,48 @@ describe('game reducer loop', () => {
       run,
       screen: {
         name: 'shop',
-        shop: { cards: ['thread', 'echo', 'delay'], relic: 'ash', bought: [], removing: false },
+        shop: { cards: ['thread', 'echo', 'delay'], relic: 'ash', bought: [], removing: false, upgrading: false },
       },
     }
     const bought = gameReducer(state, { type: 'buy-shop-card', index: 0 })
     expect(bought.run?.echoes).toBe(18)
-    expect(bought.run?.deck.at(-1)).toBe('thread')
+    expect(bought.run?.deck.at(-1)).toEqual({ cardId: 'thread', upgraded: false })
     const duplicate = gameReducer(bought, { type: 'buy-shop-card', index: 0 })
     expect(duplicate).toBe(bought)
+  })
+
+  it('upgrades exactly one deck copy at rest and advances the route', () => {
+    const run = { ...createRun('rest-upgrade', 'standard', META), currentNode: 'rest', currentTitle: '回声室' }
+    const state: GameState = {
+      ...titleState(),
+      run,
+      screen: { name: 'rest', removing: false, upgrading: true },
+    }
+
+    const upgraded = gameReducer(state, { type: 'upgrade-rest-card', index: 0 })
+    expect(upgraded.screen.name).toBe('map')
+    expect(upgraded.run?.floor).toBe(1)
+    expect(upgraded.run?.deck[0]).toEqual({ cardId: 'seal', upgraded: true })
+    expect(upgraded.run?.deck[1]).toEqual({ cardId: 'seal', upgraded: false })
+  })
+
+  it('charges once for a shop upgrade and rejects an already upgraded copy', () => {
+    const run = { ...createRun('shop-upgrade', 'standard', META), echoes: 30 }
+    const state: GameState = {
+      ...titleState(),
+      run,
+      screen: {
+        name: 'shop',
+        shop: { cards: ['thread', 'echo', 'delay'], relic: 'ash', bought: [], removing: false, upgrading: true },
+      },
+    }
+
+    const upgraded = gameReducer(state, { type: 'upgrade-shop-card', index: 0 })
+    expect(upgraded.run?.echoes).toBe(12)
+    expect(upgraded.run?.deck[0].upgraded).toBe(true)
+    if (upgraded.screen.name !== 'shop') throw new Error('shop expected')
+    expect(upgraded.screen.shop.bought).toContain('upgrade')
+    expect(gameReducer(upgraded, { type: 'upgrade-shop-card', index: 0 })).toBe(upgraded)
   })
 
   it('awards meta progression and clears the resumable run on a terminal loss', () => {
@@ -136,8 +170,8 @@ describe('game reducer loop', () => {
     const battle: BattleState = {
       ...winningBattle(),
       encounterTarget: 99,
-      hand: [{ cardId: 'secondhand', uid: 'bad-second' }],
-      placed: [{ cardId: 'secondhand', uid: 'bad-second', era: 0, paid: 0 }],
+      hand: [{ cardId: 'secondhand', upgraded: false, uid: 'bad-second' }],
+      placed: [{ cardId: 'secondhand', upgraded: false, uid: 'bad-second', era: 0, paid: 0 }],
     }
     const lost = gameReducer(
       { ...titleState(), screen: { name: 'battle' }, run, battle, resumable: titleState() },

@@ -37,9 +37,9 @@ function drawCards(runInput: RunState, battleInput: BattleState, targetHandSize:
       battle.discard = []
       run.rngState = shuffled.state
     }
-    const cardId = battle.draw.shift()
-    if (!cardId) break
-    const card: CardInstance = { cardId, uid: `${cardId}-${battle.nextCardUid}` }
+    const deckCard = battle.draw.shift()
+    if (!deckCard) break
+    const card: CardInstance = { ...deckCard, uid: `${deckCard.cardId}-${battle.nextCardUid}` }
     battle.nextCardUid += 1
     battle.hand.push(card)
   }
@@ -52,6 +52,9 @@ export function startBattle(runInput: RunState, encounterId: EncounterId): { run
   let run = { ...runInput }
   if (run.relics.includes('crane')) {
     run.timeline = Math.min(run.maxTimeline, run.timeline + 2)
+  }
+  if (run.relics.includes('key')) {
+    run.paradox = Math.max(0, run.paradox - 1)
   }
 
   const incidentOrder =
@@ -75,7 +78,7 @@ export function startBattle(runInput: RunState, encounterId: EncounterId): { run
     incidentOrder,
     round: 0,
     truth: 0,
-    credibility: 0,
+    credibility: run.relics.includes('ticket') ? 1 : 0,
     witnessAlive: true,
     draw: deck.items,
     discard: [],
@@ -94,7 +97,9 @@ export function currentIncident(battle: BattleState) {
 }
 
 export function effectiveCost(run: RunState, battle: BattleState, card: CardInstance): number {
-  return run.relics.includes('watch') && battle.placed.length === 0 ? 0 : CARDS[card.cardId].cost
+  if (run.relics.includes('watch') && battle.placed.length === 0) return 0
+  if (run.relics.includes('needle') && CARDS[card.cardId].kind === '改' && !battle.placed.some((placed) => CARDS[placed.cardId].kind === '改')) return 0
+  return CARDS[card.cardId].cost
 }
 
 export function selectCard(battle: BattleState, uid: string): BattleState {
@@ -260,6 +265,7 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
   let firstEvidence = true
   let paradoxIncreased = false
   let terminalReached = false
+  let firstUpgradedCard = true
 
   const ordered = battle.placed.map((card, index) => ({ card, index })).sort((a, b) => a.card.era - b.card.era || a.index - b.index)
   timelineResolution:
@@ -267,6 +273,14 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
     for (const { card: placed } of ordered.filter((entry) => entry.card.era === era)) {
       const paradoxBeforeCard = run.paradox
     const card = CARDS[placed.cardId]
+    const upgraded = placed.upgraded
+    if (upgraded && firstUpgradedCard) {
+      if (run.relics.includes('carbon')) {
+        battle.truth += 1
+        messages.push('复写黑纸：真相 +1。')
+      }
+      firstUpgradedCard = false
+    }
     const before = placed.era <= incident.era
     kinds.add(card.kind)
     if (card.kind === '证' && firstEvidence) {
@@ -279,40 +293,43 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
 
     if (placed.cardId === 'seal' && before) {
       flags.protectedNow = true
+      if (upgraded) battle.truth += 1
       messages.push('仓库被封锁。')
     }
     if (placed.cardId === 'rescue') {
       if (placed.era === 1) {
-        battle.truth += 1
+        battle.truth += upgraded ? 2 : 1
         battle.witnessAlive = true
         flags.protectedNow = true
         messages.push('证人被及时疏散，真相 +1。')
       } else messages.push('疏散时机错误。')
     }
     if (placed.cardId === 'ledger') {
-      const gain = battle.witnessAlive ? 3 : 2
+      const gain = (battle.witnessAlive ? 3 : 2) + (upgraded ? 1 : 0)
       battle.truth += gain
       messages.push(`账本残页：真相 +${gain}。`)
     }
     if (placed.cardId === 'clarify') {
-      battle.credibility += 1
+      battle.credibility += upgraded ? 2 : 1
       if (before) flags.clarified = true
+      if (before && upgraded) battle.truth += 1
       messages.push('可信度 +1。')
     }
     if (placed.cardId === 'memory') {
       const gain = placed.era === 0 ? 4 : 3
       battle.truth += gain
-      run.paradox += 2
-      messages.push(`真实记忆：真相 +${gain}，悖论 +2。`)
+      run.paradox += upgraded ? 1 : 2
+      messages.push(`真实记忆：真相 +${gain}，悖论 +${upgraded ? 1 : 2}。`)
     }
     if (placed.cardId === 'anchor' && before) {
       flags.anchored = true
-      run.paradox = Math.max(0, run.paradox - 1)
-      messages.push('真相已锚定，悖论 -1。')
+      const reduction = upgraded ? 2 : 1
+      run.paradox = Math.max(0, run.paradox - reduction)
+      messages.push(`真相已锚定，悖论 -${reduction}。`)
     }
     if (placed.cardId === 'alibi') {
       battle.credibility += 2
-      battle.truth += 1
+      battle.truth += upgraded ? 2 : 1
       run.paradox += 2
       messages.push('伪造口供：真相 +1，悖论 +2。')
     }
@@ -320,82 +337,88 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
       if (placed.era === 0) {
         flags.cancelled = true
         run.paradox += 2
+        if (upgraded) run.timeline = Math.min(run.maxTimeline, run.timeline + 1)
         messages.push('固定事件被提前停电取消。')
       } else messages.push('停电来得太晚。')
     }
     if (placed.cardId === 'annotation') {
-      const gain = placed.era === 2 ? 3 : 1
+      const gain = placed.era === 2 ? (upgraded ? 4 : 3) : (upgraded ? 2 : 1)
       battle.truth += gain
       messages.push(`逆序批注：真相 +${gain}。`)
     }
     if (placed.cardId === 'echo') {
-      const gain = Math.max(1, kinds.size)
+      const gain = Math.max(1, kinds.size) + (upgraded ? 1 : 0)
       battle.truth += gain
       messages.push(`因果回响：真相 +${gain}。`)
     }
     if (placed.cardId === 'testimony') {
       if (battle.credibility > 0) {
-        battle.truth += 2
-        messages.push('口供被封存：真相 +2。')
+        const gain = upgraded ? 3 : 2
+        battle.truth += gain
+        messages.push(`口供被封存：真相 +${gain}。`)
       }
       battle.credibility += 1
     }
     if (placed.cardId === 'vow') {
-      let gain = 5
+      let gain = upgraded ? 6 : 5
       if (run.paradox >= 4) {
-        gain += 2
+        gain += upgraded ? 3 : 2
         run.timeline -= 2
       }
       battle.truth += gain
       messages.push(`以身作证：真相 +${gain}。`)
     }
     if (placed.cardId === 'thread') {
-      battle.truth += 1
+      battle.truth += upgraded ? 2 : 1
       if (placed.era === 1) battle.credibility += 1
       messages.push('红线追迹：真相 +1。')
     }
     if (placed.cardId === 'delay') {
       flags.protectedNow = true
-      if (placed.era === 2) battle.truth += 1
+      if (placed.era === 2) battle.truth += upgraded ? 2 : 1
       messages.push('固定事件被延迟。')
     }
     if (placed.cardId === 'doorplate') {
       flags.protectedNow = true
       if (placed.era === 0) {
-        battle.truth += 2
-        messages.push('燃烧的门牌：真相 +2。')
+        const gain = upgraded ? 3 : 2
+        battle.truth += gain
+        messages.push(`燃烧的门牌：真相 +${gain}。`)
       }
     }
     if (placed.cardId === 'chorus') {
-      const gain = battle.credibility >= 1 ? 5 : 3
+      const gain = battle.credibility >= 1 ? (upgraded ? 6 : 5) : (upgraded ? 4 : 3)
       battle.truth += gain
       messages.push(`双重证词：真相 +${gain}。`)
     }
     if (placed.cardId === 'rewind') {
       if (placed.era === 0) {
         flags.cancelled = true
-        run.timeline = Math.min(run.maxTimeline, run.timeline + 2)
+        const repair = upgraded ? 4 : 2
+        run.timeline = Math.min(run.maxTimeline, run.timeline + repair)
         run.paradox += 2
-        messages.push('回到案发前：事件取消，时间线 +2，悖论 +2。')
+        messages.push(`回到案发前：事件取消，时间线 +${repair}，悖论 +2。`)
       } else messages.push('你没能回到足够早。')
     }
     if (placed.cardId === 'sealorder') {
       flags.anchored = true
       if (kinds.has('证')) {
-        battle.truth += 2
-        messages.push('封存命令：真相 +2。')
+        const gain = upgraded ? 3 : 2
+        battle.truth += gain
+        messages.push(`封存命令：真相 +${gain}。`)
       }
     }
     if (placed.cardId === 'erase') {
-      battle.truth += 4
+      battle.truth += upgraded ? 5 : 4
       battle.witnessAlive = false
-      run.paradox += 2
-      messages.push('目击者被删除：真相 +4，悖论 +2。')
+      run.paradox += upgraded ? 1 : 2
+      messages.push(`目击者被删除：真相 +${upgraded ? 5 : 4}，悖论 +${upgraded ? 1 : 2}。`)
     }
     if (placed.cardId === 'secondhand') {
       if (placed.era === 2) {
-        battle.truth += 2
-        messages.push('借来的秒针：真相 +2。')
+        const gain = upgraded ? 3 : 2
+        battle.truth += gain
+        messages.push(`借来的秒针：真相 +${gain}。`)
       } else {
         run.paradox += 1
         messages.push('秒针错位：悖论 +1。')
@@ -410,7 +433,13 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
 
     if (era === incident.era && !flags.cancelled) {
       const paradoxBeforeIncident = run.paradox
+      const timelineBeforeIncident = run.timeline
       applyIncident(incident.id, run, battle, flags, kinds, messages)
+      if (run.relics.includes('lens') && run.timeline < timelineBeforeIncident) {
+        const restored = Math.min(2, timelineBeforeIncident - run.timeline)
+        run.timeline += restored
+        messages.push(`裂纹目镜：时间线 +${restored}。`)
+      }
       if (run.paradox > paradoxBeforeIncident) paradoxIncreased = true
       if (run.timeline <= 0 || run.paradox >= run.paradoxLimit) {
         terminalReached = true
@@ -426,6 +455,10 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
   if (paradoxIncreased && run.relics.includes('mirror')) {
     battle.truth += 1
     messages.push('镜面残片记录了矛盾：真相 +1。')
+  }
+  if (!terminalReached && run.relics.includes('bellshard') && new Set(battle.placed.map((card) => card.era)).size === 3) {
+    battle.truth += 2
+    messages.push('逆钟碎片：真相 +2。')
   }
   battle.log = messages
 
@@ -446,7 +479,7 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
 
   const nextBattle: BattleState = {
     ...battle,
-    discard: [...battle.discard, ...battle.hand.map((card) => card.cardId)],
+    discard: [...battle.discard, ...battle.hand.map(({ cardId, upgraded }) => ({ cardId, upgraded }))],
     hand: [],
     placed: [],
     selectedUid: undefined,

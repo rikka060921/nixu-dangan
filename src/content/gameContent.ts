@@ -46,6 +46,12 @@ export const RELICS: Record<RelicId, RelicDefinition> = {
   redthread: { id: 'redthread', name: '朱砂红线', text: '每回合第一张「证」额外获得 1 点真相。' },
   ash: { id: 'ash', name: '灰烬印章', text: '每次取消固定事件时修复 2 点时间线。' },
   mirror: { id: 'mirror', name: '镜面残片', text: '每回合首次增加悖论时获得 1 点真相。' },
+  ticket: { id: 'ticket', name: '昨日车票', text: '进入每场案件时获得 1 点可信度。' },
+  needle: { id: 'needle', name: '校准银针', text: '每回合第一张「改」费用为 0。' },
+  carbon: { id: 'carbon', name: '复写黑纸', text: '每回合第一张已升级牌额外获得 1 点真相。' },
+  bellshard: { id: 'bellshard', name: '逆钟碎片', text: '一轮在过去、现在、未来均安排行动时，真相 +2。' },
+  lens: { id: 'lens', name: '裂纹目镜', text: '固定事件造成的时间线损伤减少 2 点。' },
+  key: { id: 'key', name: '第零号钥匙', text: '进入每场案件时悖论 -1。' },
 }
 
 export const INCIDENTS: Record<IncidentId, IncidentDefinition> = {

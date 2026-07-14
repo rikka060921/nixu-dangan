@@ -53,9 +53,9 @@ export function buildRandomLayers(initialState: number): { layers: MapNode[][]; 
 export function createRun(seed: string, modeId: ChallengeId, meta: MetaState): RunState {
   const mode = CHALLENGES[modeId]
   const generated = buildRandomLayers(seedHash(seed))
-  const deck = [...START_DECK]
-  if (modeId === 'zero') deck.push('alibi')
-  if (meta.wins > 0) deck.push('annotation')
+  const deck = START_DECK.map((cardId) => ({ cardId, upgraded: false }))
+  if (modeId === 'zero') deck.push({ cardId: 'alibi', upgraded: false })
+  if (meta.wins > 0) deck.push({ cardId: 'annotation', upgraded: false })
 
   return {
     timeline: mode.timeline,
@@ -89,7 +89,8 @@ export function pickRewardOptions(run: RunState, count = 3): { run: RunState; op
   const kindCounts = new Map<string, number>()
   const tagCounts = new Map<string, number>()
   const cardCounts = new Map<CardId, number>()
-  for (const cardId of run.deck) {
+  for (const deckCard of run.deck) {
+    const { cardId } = deckCard
     const card = CARDS[cardId]
     kindCounts.set(card.kind, (kindCounts.get(card.kind) ?? 0) + 1)
     cardCounts.set(cardId, (cardCounts.get(cardId) ?? 0) + 1)
@@ -131,6 +132,7 @@ export function createShop(run: RunState): { run: RunState; shop: ShopState } {
       relic: relics.items[0],
       bought: [],
       removing: false,
+      upgrading: false,
     },
   }
 }

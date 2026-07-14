@@ -141,13 +141,13 @@ export function BattleScreen({ state, dispatch }: { state: GameState & { run: Ru
                 onClick={() => dispatch({ type: 'place-card', era: era as 0 | 1 | 2 })}
               >
                 {selected ? (
-                  <><b>放到{eraName}</b><small>{getPlacementHint(selected.cardId, era as 0 | 1 | 2, incident)}</small></>
+                  <><b>放到{eraName}</b><small>{getPlacementHint(selected.cardId, era as 0 | 1 | 2, incident, selected.upgraded)}</small></>
                 ) : '选择手牌后可放置'}
               </button>
               <div className="era-events">
                 {placed.map((card) => (
                   <button className={`placed-card card-${CARDS[card.cardId].kind}`} type="button" key={card.uid} onClick={() => dispatch({ type: 'remove-placed', uid: card.uid })}>
-                    <i>{CARDS[card.cardId].kind}</i><b>{CARDS[card.cardId].name}</b><small>撤回</small>
+                    <i>{CARDS[card.cardId].kind}</i><b>{CARDS[card.cardId].name}{card.upgraded ? ' +' : ''}</b><small>撤回</small>
                   </button>
                 ))}
                 {incident.era === era ? <div className="fixed-event"><small>不可移动</small><b>{incident.name.replace('固定事件：', '')}</b></div> : null}
@@ -171,7 +171,7 @@ export function BattleScreen({ state, dispatch }: { state: GameState & { run: Ru
         ))}
       </div>
       <footer className="actionbar">
-        <p>{selected ? `已选择「${CARDS[selected.cardId].name}」——决定它何时发生。` : battle.placed.length ? `已编排 ${battle.placed.length} 个行动；结算将严格从过去走向未来。` : '选择手牌，开始改写因果。'}</p>
+        <p>{selected ? `已选择「${CARDS[selected.cardId].name}${selected.upgraded ? ' +' : ''}」——决定它何时发生。` : battle.placed.length ? `已编排 ${battle.placed.length} 个行动；结算将严格从过去走向未来。` : '选择手牌，开始改写因果。'}</p>
         <PrimaryButton disabled={!battle.placed.length} onClick={() => dispatch({ type: 'resolve-timeline' })}>执行时间线</PrimaryButton>
       </footer>
       <div className="battle-log" aria-live="polite">{battle.log.map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}</div>
@@ -201,11 +201,21 @@ export function EventScreen({ state, dispatch }: { state: GameState & { run: Run
 }
 
 export function RestScreen({ state, dispatch }: { state: GameState & { run: RunState; screen: Extract<GameState['screen'], { name: 'rest' }> }; dispatch: GameDispatch }) {
+  if (state.screen.upgrading) {
+    return (
+      <StoryPanel eyebrow="ANNOTATE A POSSIBILITY" title="校注一张仍可改变的牌">
+        <p className="narrative">升级只影响这一个副本。金色文字是它从下一份档案开始采用的新规则。</p>
+        <UpgradeGrid run={state.run} onUpgrade={(index) => dispatch({ type: 'upgrade-rest-card', index })} />
+        <button className="text-button" type="button" onClick={() => dispatch({ type: 'cancel-rest-edit' })}>返回休整选项</button>
+      </StoryPanel>
+    )
+  }
   if (state.screen.removing) {
     return (
       <StoryPanel eyebrow="REMOVE A MEMORY" title="烧掉一段多余的因果">
         <p className="narrative">被烧掉的牌不会在本局再次出现。越薄的牌组越容易找到关键行动。</p>
-        <div className="remove-grid">{state.run.deck.map((cardId, index) => <button className={`remove-card card-${CARDS[cardId].kind}`} type="button" key={`${cardId}-${index}`} onClick={() => dispatch({ type: 'remove-rest-card', index })}>{CARDS[cardId].kind} · {CARDS[cardId].name}</button>)}</div>
+        <div className="remove-grid">{state.run.deck.map((deckCard, index) => <button className={`remove-card card-${CARDS[deckCard.cardId].kind}`} type="button" key={`${deckCard.cardId}-${index}`} onClick={() => dispatch({ type: 'remove-rest-card', index })}>{CARDS[deckCard.cardId].kind} · {CARDS[deckCard.cardId].name}{deckCard.upgraded ? ' +' : ''}</button>)}</div>
+        <button className="text-button" type="button" onClick={() => dispatch({ type: 'cancel-rest-edit' })}>返回休整选项</button>
       </StoryPanel>
     )
   }
@@ -215,6 +225,7 @@ export function RestScreen({ state, dispatch }: { state: GameState & { run: RunS
       <div className="choices">
         <Choice icon="补" title="缝合时间线" description="休息片刻，修复事故留下的裂口。" result="回复 10" onClick={() => dispatch({ type: 'choose-rest', choice: 'heal' })} />
         <Choice icon="静" title="静默校准" description="放弃追索一段危险记忆。" result="悖论 -3" onClick={() => dispatch({ type: 'choose-rest', choice: 'calm' })} />
+        <Choice icon="校" title="校注一张牌" description="选择一个未升级副本，永久强化其规则。" result="升级一张牌" onClick={() => dispatch({ type: 'choose-rest', choice: 'upgrade' })} />
         <Choice icon="焚" title="烧掉一张牌" description="永久移除本局牌组中的一张牌。" result="精简牌组" onClick={() => dispatch({ type: 'choose-rest', choice: 'remove' })} />
       </div>
     </StoryPanel>
@@ -228,7 +239,7 @@ export function RewardScreen({ state, dispatch }: { state: GameState & { run: Ru
       <p className="lead">本案获得 {state.screen.gain} 枚回声。选择一张牌加入本局牌组；它会从下一份档案开始出现。</p>
       {state.screen.relicGained ? <p className="reward-relic"><b>精英遗物 · {RELICS[state.screen.relicGained].name}</b><span>{RELICS[state.screen.relicGained].text}</span></p> : null}
       <div className="reward-grid">{state.screen.options.map((cardId, index) => {
-        const instance: CardInstance = { cardId, uid: `reward-${index}` }
+        const instance: CardInstance = { cardId, upgraded: false, uid: `reward-${index}` }
         return <CardButton card={instance} reward key={instance.uid} onClick={() => dispatch({ type: 'choose-reward', cardId })} />
       })}</div>
       <button className="text-button reward-skip" type="button" onClick={() => dispatch({ type: 'skip-reward' })}>跳过奖励 · 修复 3 点时间线</button>
@@ -256,11 +267,20 @@ export function ChapterScreen({ state, dispatch }: { state: GameState & { run: R
 
 export function ShopScreen({ state, dispatch }: { state: GameState & { run: RunState; screen: Extract<GameState['screen'], { name: 'shop' }> }; dispatch: GameDispatch }) {
   const { shop } = state.screen
+  if (shop.upgrading) {
+    return (
+      <StoryPanel eyebrow="ANNOTATE A CARD · 18 回声" title="选择一段要重新定稿的因果">
+        <p className="narrative">摊主只改一份原件，而且拒绝在同一张纸上收两次钱。</p>
+        <UpgradeGrid run={state.run} onUpgrade={(index) => dispatch({ type: 'upgrade-shop-card', index })} />
+        <button className="text-button" type="button" onClick={() => dispatch({ type: 'cancel-shop-upgrade' })}>取消</button>
+      </StoryPanel>
+    )
+  }
   if (shop.removing) {
     return (
       <StoryPanel eyebrow="ERASE A CARD · 15 回声" title="选择一段要卖掉的记忆">
         <p className="narrative">书摊主人不会问它来自谁。牌会从当前牌组永久移除。</p>
-        <div className="remove-grid">{state.run.deck.map((cardId, index) => <button className={`remove-card card-${CARDS[cardId].kind}`} type="button" key={`${cardId}-${index}`} onClick={() => dispatch({ type: 'remove-shop-card', index })}>{CARDS[cardId].kind} · {CARDS[cardId].name}</button>)}</div>
+        <div className="remove-grid">{state.run.deck.map((deckCard, index) => <button className={`remove-card card-${CARDS[deckCard.cardId].kind}`} type="button" key={`${deckCard.cardId}-${index}`} onClick={() => dispatch({ type: 'remove-shop-card', index })}>{CARDS[deckCard.cardId].kind} · {CARDS[deckCard.cardId].name}{deckCard.upgraded ? ' +' : ''}</button>)}</div>
         <button className="text-button" type="button" onClick={() => dispatch({ type: 'cancel-shop-remove' })}>取消</button>
       </StoryPanel>
     )
@@ -276,6 +296,7 @@ export function ShopScreen({ state, dispatch }: { state: GameState & { run: RunS
         <ShopItem label="RELIC" title={RELICS[shop.relic].name} description={RELICS[shop.relic].text} price="25 回声" sold={shop.bought.includes('relic')} disabled={state.run.echoes < 25} onClick={() => dispatch({ type: 'buy-shop-relic' })} />
         <ShopItem label="SERVICE" title="缝合时间线" description="立即修复 8 点时间线。" price="10 回声" sold={shop.bought.includes('heal')} disabled={state.run.echoes < 10} onClick={() => dispatch({ type: 'buy-shop-heal' })} />
         <ShopItem label="SERVICE" title="删除一张牌" description="从本局牌组永久移除一张牌。" price="15 回声" sold={shop.bought.includes('remove')} disabled={state.run.echoes < 15} onClick={() => dispatch({ type: 'open-shop-remove' })} />
+        <ShopItem label="SERVICE" title="校注一张牌" description="选择一个未升级副本，永久采用强化规则。" price="18 回声" sold={shop.bought.includes('upgrade')} disabled={state.run.echoes < 18} onClick={() => dispatch({ type: 'open-shop-upgrade' })} />
       </div>
       <PrimaryButton onClick={() => dispatch({ type: 'leave-shop' })}>离开书摊</PrimaryButton>
     </StoryPanel>
@@ -301,4 +322,24 @@ function Choice({ icon, title, description, result, onClick }: { icon: string; t
 
 function ShopItem({ label, title, description, price, sold, disabled, onClick }: { label: string; title: string; description: string; price: string; sold: boolean; disabled: boolean; onClick: () => void }) {
   return <article className={`shop-item ${sold ? 'is-sold' : ''}`}><p className="eyebrow">{label}</p><h3>{title}</h3><p>{description}</p><footer><span>{price}</span><button type="button" disabled={sold || disabled} onClick={onClick}>{sold ? '已售' : '购买'}</button></footer></article>
+}
+
+function UpgradeGrid({ run, onUpgrade }: { run: RunState; onUpgrade: (index: number) => void }) {
+  const available = run.deck.some((card) => !card.upgraded)
+  if (!available) return <p className="empty-state">当前牌组中的每个副本都已完成校注。</p>
+  return (
+    <div className="upgrade-grid">
+      {run.deck.map((deckCard, index) => {
+        if (deckCard.upgraded) return null
+        const card = CARDS[deckCard.cardId]
+        return (
+          <button className={`upgrade-card card-${card.kind}`} type="button" key={`${deckCard.cardId}-${index}`} onClick={() => onUpgrade(index)}>
+            <span>{card.kind} · {card.name}</span>
+            <small>{card.text}</small>
+            <b>{card.upgradeText}</b>
+          </button>
+        )
+      })}
+    </div>
+  )
 }

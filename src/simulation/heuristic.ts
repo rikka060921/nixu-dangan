@@ -161,5 +161,5 @@ export function simulateRun(seed: string, actionLimit = 500): SimulationResult {
 }
 
 export function describeDeck(state: GameState): string[] {
-  return state.run?.deck.map((cardId) => CARDS[cardId].name) ?? []
+  return state.run?.deck.map(({ cardId, upgraded }) => `${CARDS[cardId].name}${upgraded ? '+' : ''}`) ?? []
 }

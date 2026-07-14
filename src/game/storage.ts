@@ -2,6 +2,7 @@ import type {
   BattleState,
   CardId,
   ChallengeId,
+  DeckCard,
   GameState,
   MapNode,
   MetaState,
@@ -12,7 +13,8 @@ import type {
 import { buildRandomLayers } from '../domain/run'
 import { seedHash } from '../domain/random'
 
-export const SAVE_KEY = 'reverseArchiveSaveV4'
+export const SAVE_KEY = 'reverseArchiveSaveV5'
+export const VERSION4_SAVE_KEY = 'reverseArchiveSaveV4'
 export const VERSION3_SAVE_KEY = 'reverseArchiveSaveV3'
 export const LEGACY_SAVE_KEY = 'reverseArchiveSaveV2'
 export const META_KEY = 'reverseArchiveMeta'
@@ -56,7 +58,7 @@ export function saveSession(state: GameState): void {
   if (!hasStorage() || !state.run || state.screen.name === 'ending') return
   const payload = {
     format: 'reverse-archive-save',
-    version: 4,
+    version: 5,
     savedAt: new Date().toISOString(),
     state: { ...state, resumable: null, notice: undefined },
   }
@@ -66,14 +68,70 @@ export function saveSession(state: GameState): void {
 export function clearSession(): void {
   if (!hasStorage()) return
   localStorage.removeItem(SAVE_KEY)
+  localStorage.removeItem(VERSION4_SAVE_KEY)
   localStorage.removeItem(VERSION3_SAVE_KEY)
   localStorage.removeItem(LEGACY_SAVE_KEY)
 }
 
-function readVersion4(raw: string): GameState | null {
+function readVersion5(raw: string): GameState | null {
+  const payload = JSON.parse(raw) as { format?: string; version?: number; state?: GameState }
+  if (payload.format !== 'reverse-archive-save' || payload.version !== 5 || !payload.state?.run) return null
+  return { ...payload.state, resumable: null, notice: '调查存档已恢复。' }
+}
+
+function normalizeDeck(value: unknown): DeckCard[] {
+  if (!Array.isArray(value)) return []
+  return value.map((entry) => {
+    if (typeof entry === 'string') return { cardId: entry as CardId, upgraded: false }
+    const record = asRecord(entry)
+    return {
+      cardId: String(record.cardId ?? record.id ?? 'seal') as CardId,
+      upgraded: Boolean(record.upgraded),
+    }
+  })
+}
+
+function normalizeBattle(battle: BattleState | null): BattleState | null {
+  if (!battle) return null
+  return {
+    ...battle,
+    draw: normalizeDeck(battle.draw),
+    discard: normalizeDeck(battle.discard),
+    hand: battle.hand.map((card) => ({ ...card, upgraded: Boolean(card.upgraded) })),
+    placed: battle.placed.map((card) => ({ ...card, upgraded: Boolean(card.upgraded) })),
+  }
+}
+
+function normalizeScreen(screen: ScreenState): ScreenState {
+  if (screen.name === 'rest') {
+    return { ...screen, removing: Boolean(screen.removing), upgrading: Boolean(screen.upgrading) }
+  }
+  if (screen.name === 'shop') {
+    return {
+      ...screen,
+      shop: {
+        ...screen.shop,
+        removing: Boolean(screen.shop.removing),
+        upgrading: Boolean(screen.shop.upgrading),
+      },
+    }
+  }
+  return screen
+}
+
+function migrateVersion4(raw: string): GameState | null {
   const payload = JSON.parse(raw) as { format?: string; version?: number; state?: GameState }
   if (payload.format !== 'reverse-archive-save' || payload.version !== 4 || !payload.state?.run) return null
-  return { ...payload.state, resumable: null, notice: '调查存档已恢复。' }
+  const oldState = payload.state
+  const oldRun = oldState.run as RunState
+  return {
+    ...oldState,
+    screen: normalizeScreen(oldState.screen),
+    run: { ...oldRun, deck: normalizeDeck(oldRun.deck) },
+    battle: normalizeBattle(oldState.battle),
+    resumable: null,
+    notice: 'V4 存档已升级，卡牌升级系统现已启用。',
+  }
 }
 
 function migrateVersion3(raw: string): GameState | null {
@@ -90,16 +148,19 @@ function migrateVersion3(raw: string): GameState | null {
   const onFormerFinalBoss = legacyCampaign && oldRun.floor === 5 && oldRun.currentNode === 'boss'
   const run: RunState = {
     ...oldRun,
+    deck: normalizeDeck(oldRun.deck),
     layers,
     currentNode: onFormerFinalBoss ? 'curator' : oldRun.currentNode,
     currentTitle: onFormerFinalBoss ? '封馆人' : oldRun.currentTitle,
   }
-  const battle = onFormerFinalBoss && oldState.battle?.encounterId === 'boss'
+  const legacyBattle = onFormerFinalBoss && oldState.battle?.encounterId === 'boss'
     ? { ...oldState.battle, encounterId: 'curator' as const, encounterTarget: 18 }
     : oldState.battle
+  const battle = normalizeBattle(legacyBattle)
 
   return {
     ...oldState,
+    screen: normalizeScreen(oldState.screen),
     run,
     battle,
     resumable: null,
@@ -122,7 +183,7 @@ function migrateLegacy(raw: string, fallbackMeta: MetaState): GameState | null {
   const seed = String(oldRun.seed ?? 'legacy')
   const mode = isChallenge(oldRun.mode) ? oldRun.mode : 'standard'
   const generated = buildRandomLayers(seedHash(seed))
-  const legacyLayers = Array.isArray(oldRun.layers)
+  const parsedLegacyLayers = Array.isArray(oldRun.layers)
     ? oldRun.layers.map((layer) =>
         Array.isArray(layer)
           ? layer.map((value) => {
@@ -138,20 +199,25 @@ function migrateLegacy(raw: string, fallbackMeta: MetaState): GameState | null {
             })
           : [],
       )
-    : generated.layers
+    : []
+  const legacyLayers = generated.layers.map((layer, index) =>
+    index < 5 && parsedLegacyLayers[index]?.length ? parsedLegacyLayers[index] : layer,
+  )
+  const legacyFloor = Number(oldRun.floor ?? 0)
+  const onFormerFinalBoss = legacyFloor === 5 && oldRun.currentNode === 'boss'
   const run: RunState = {
     timeline: Number(oldRun.hp ?? 30),
     maxTimeline: Number(oldRun.maxHp ?? 30),
     paradox: Number(oldRun.paradox ?? 0),
     paradoxLimit: Number(oldRun.paradoxLimit ?? 8),
     echoes: Number(oldRun.echoes ?? 0),
-    deck: (Array.isArray(oldRun.deck) ? oldRun.deck : []) as CardId[],
+    deck: normalizeDeck(oldRun.deck),
     relics: (Array.isArray(oldRun.relics) ? oldRun.relics : []) as RelicId[],
-    floor: Number(oldRun.floor ?? 0),
+    floor: legacyFloor,
     cleared: (Array.isArray(oldRun.cleared) ? oldRun.cleared : []) as RunState['cleared'],
     story: (Array.isArray(oldRun.story) ? oldRun.story : []) as string[],
-    currentNode: typeof oldRun.currentNode === 'string' ? oldRun.currentNode : undefined,
-    currentTitle: String(oldRun.currentTitle ?? '追查灾难的起点'),
+    currentNode: onFormerFinalBoss ? 'curator' : typeof oldRun.currentNode === 'string' ? oldRun.currentNode : undefined,
+    currentTitle: onFormerFinalBoss ? '封馆人' : String(oldRun.currentTitle ?? '追查灾难的起点'),
     mode,
     seed,
     rngState: Number(oldRun.rngState ?? generated.rngState),
@@ -163,22 +229,24 @@ function migrateLegacy(raw: string, fallbackMeta: MetaState): GameState | null {
   const oldPlaced = Array.isArray(oldBattle.placed) ? oldBattle.placed.map(asRecord) : []
   const battle: BattleState | null = Object.keys(oldBattle).length
     ? {
-        encounterId: String(oldBattle.id ?? 'fire') as BattleState['encounterId'],
-        encounterTarget: Number(asRecord(oldBattle.enc).target ?? 7),
+        encounterId: (onFormerFinalBoss ? 'curator' : String(oldBattle.id ?? 'fire')) as BattleState['encounterId'],
+        encounterTarget: onFormerFinalBoss ? 18 : Number(asRecord(oldBattle.enc).target ?? 7),
         incidentOrder: (Array.isArray(oldBattle.incidents) ? oldBattle.incidents : []) as BattleState['incidentOrder'],
         round: Number(oldBattle.round ?? 0),
         truth: Number(oldBattle.truth ?? 0),
         credibility: Number(oldBattle.cred ?? 0),
         witnessAlive: Boolean(oldBattle.witness ?? true),
-        draw: (Array.isArray(oldBattle.draw) ? oldBattle.draw : []) as CardId[],
-        discard: (Array.isArray(oldBattle.discard) ? oldBattle.discard : []) as CardId[],
+        draw: normalizeDeck(oldBattle.draw),
+        discard: normalizeDeck(oldBattle.discard),
         hand: oldHand.map((card, index) => ({
           cardId: String(card.id ?? 'seal') as CardId,
+          upgraded: false,
           uid: String(card.uid ?? `legacy-${index}`),
         })),
         energy: Number(oldBattle.energy ?? 3),
         placed: oldPlaced.map((card, index) => ({
           cardId: String(card.id ?? 'seal') as CardId,
+          upgraded: false,
           uid: String(card.uid ?? `legacy-placed-${index}`),
           era: Number(card.era ?? 0) as 0 | 1 | 2,
           paid: Number(card.paid ?? 0),
@@ -193,7 +261,7 @@ function migrateLegacy(raw: string, fallbackMeta: MetaState): GameState | null {
   let screen: ScreenState = { name: 'map' }
   if (oldScreen === 'battle' && battle) screen = { name: 'battle' }
   if (oldScreen === 'event') screen = { name: 'event', eventId: oldState.id === 'photo' ? 'photo' : 'telegram' }
-  if (oldScreen === 'rest') screen = { name: 'rest', removing: Boolean(oldState.removing) }
+  if (oldScreen === 'rest') screen = { name: 'rest', removing: Boolean(oldState.removing), upgrading: false }
   if (oldScreen === 'reward') {
     screen = {
       name: 'reward',
@@ -213,6 +281,7 @@ function migrateLegacy(raw: string, fallbackMeta: MetaState): GameState | null {
           String(key).replace(/^c(\d+)$/, 'card-$1'),
         ),
         removing: Boolean(oldShop.removing),
+        upgrading: false,
       },
     }
   }
@@ -234,7 +303,9 @@ export function loadSession(meta = loadMeta()): GameState | null {
   if (!hasStorage()) return null
   try {
     const current = localStorage.getItem(SAVE_KEY)
-    if (current) return readVersion4(current)
+    if (current) return readVersion5(current)
+    const version4 = localStorage.getItem(VERSION4_SAVE_KEY)
+    if (version4) return migrateVersion4(version4)
     const version3 = localStorage.getItem(VERSION3_SAVE_KEY)
     if (version3) return migrateVersion3(version3)
     const legacy = localStorage.getItem(LEGACY_SAVE_KEY)

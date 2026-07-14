@@ -24,5 +24,10 @@ describe('placement previews', () => {
     expect(getPlacementHint('secondhand', 2, INCIDENTS.fire)).toContain('真相 +2')
     expect(getPlacementHint('secondhand', 0, INCIDENTS.fire)).toContain('悖论 +1')
   })
-})
 
+  it('shows upgraded values without losing era-specific failure warnings', () => {
+    expect(getPlacementHint('rescue', 1, INCIDENTS.fire, true)).toContain('真相 +2')
+    expect(getPlacementHint('rescue', 2, INCIDENTS.fire, true)).toContain('疏散过晚')
+    expect(getPlacementHint('anchor', 0, INCIDENTS.rumor, true)).toContain('悖论 -2')
+  })
+})

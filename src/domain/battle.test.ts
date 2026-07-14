@@ -23,7 +23,7 @@ function makeRun(seed = 'archive-test'): RunState {
 }
 
 function makeBattle(cardIds: CardId[], incident: BattleState['incidentOrder'][number], eras: Era[]): BattleState {
-  const hand = cardIds.map((cardId, index) => ({ cardId, uid: `${cardId}-${index}` }))
+  const hand = cardIds.map((cardId, index) => ({ cardId, upgraded: false, uid: `${cardId}-${index}` }))
   const placed: PlacedCard[] = hand.map((card, index) => ({ ...card, era: eras[index], paid: 0 }))
   return {
     encounterId: 'fire',
@@ -85,9 +85,16 @@ describe('timeline placement', () => {
   it('rejects a card that costs more than the remaining energy', () => {
     const run = makeRun()
     const started = startBattle(run, 'fire')
-    const expensive = { cardId: 'memory' as const, uid: 'memory-test' }
+    const expensive = { cardId: 'memory' as const, upgraded: false, uid: 'memory-test' }
     const battle = { ...started.battle, hand: [expensive], selectedUid: expensive.uid, energy: 1 }
     expect(placeSelectedCard(started.run, battle, 0)).toBe(battle)
+  })
+
+  it('makes the first rewrite card free with the calibration needle', () => {
+    const run = { ...makeRun(), relics: ['needle'] as RunState['relics'] }
+    const battle = makeBattle(['memory', 'annotation'], 'theft', [0, 2])
+    expect(effectiveCost(run, { ...battle, placed: [] }, battle.hand[0])).toBe(0)
+    expect(effectiveCost(run, { ...battle, placed: [battle.placed[0]] }, battle.hand[1])).toBe(1)
   })
 })
 
@@ -161,5 +168,50 @@ describe('causal resolution', () => {
     expect(result.outcome).toBe('run-lost')
     expect(result.battle.truth).toBe(0)
     expect(result.battle.log.join('')).not.toContain('账本残页')
+  })
+
+  it('applies an upgrade to one card instance without changing the base copy rules', () => {
+    const run = makeRun()
+    const normalBattle = makeBattle(['memory'], 'theft', [0])
+    const upgradedSource = makeBattle(['memory'], 'theft', [0])
+    const upgradedBattle: BattleState = {
+      ...upgradedSource,
+      hand: upgradedSource.hand.map((card) => ({ ...card, upgraded: true })),
+      placed: upgradedSource.placed.map((card) => ({ ...card, upgraded: true })),
+    }
+
+    const normal = resolveTimeline(run, normalBattle)
+    const upgraded = resolveTimeline(run, upgradedBattle)
+
+    expect(normal.run.paradox).toBe(2)
+    expect(upgraded.run.paradox).toBe(1)
+    expect(upgraded.battle.truth).toBe(normal.battle.truth)
+  })
+
+  it('initializes case resources from persistent relic hooks', () => {
+    const run = { ...makeRun(), paradox: 3, relics: ['ticket', 'key'] as RunState['relics'] }
+    const started = startBattle(run, 'fire')
+    expect(started.run.paradox).toBe(2)
+    expect(started.battle.credibility).toBe(1)
+  })
+
+  it('reduces fixed-event damage with the cracked lens', () => {
+    const run = { ...makeRun(), relics: ['lens'] as RunState['relics'] }
+    const result = resolveTimeline(run, makeBattle(['ledger'], 'fire', [2]))
+    expect(result.run.timeline).toBe(run.timeline - 2)
+    expect(result.battle.log.join('')).toContain('裂纹目镜')
+  })
+
+  it('rewards upgraded cards and three-era planning through relic hooks', () => {
+    const run = { ...makeRun(), relics: ['carbon', 'bellshard'] as RunState['relics'] }
+    const source = makeBattle(['thread', 'ledger', 'anchor'], 'theft', [0, 1, 2])
+    const battle: BattleState = {
+      ...source,
+      hand: source.hand.map((card, index) => index === 0 ? { ...card, upgraded: true } : card),
+      placed: source.placed.map((card, index) => index === 0 ? { ...card, upgraded: true } : card),
+    }
+    const result = resolveTimeline(run, battle)
+    expect(result.battle.log.join('')).toContain('复写黑纸')
+    expect(result.battle.log.join('')).toContain('逆钟碎片')
   })
 })

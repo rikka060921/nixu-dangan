@@ -26,7 +26,18 @@ export type CardId =
   | 'erase'
   | 'secondhand'
 
-export type RelicId = 'watch' | 'crane' | 'redthread' | 'ash' | 'mirror'
+export type RelicId =
+  | 'watch'
+  | 'crane'
+  | 'redthread'
+  | 'ash'
+  | 'mirror'
+  | 'ticket'
+  | 'needle'
+  | 'carbon'
+  | 'bellshard'
+  | 'lens'
+  | 'key'
 export type IncidentId =
   | 'fire'
   | 'interrogation'
@@ -70,7 +81,13 @@ export interface CardDefinition {
   tags: CardTag[]
   cost: number
   text: string
+  upgradeText: string
   flavor: string
+}
+
+export interface DeckCard {
+  cardId: CardId
+  upgraded: boolean
 }
 
 export interface RelicDefinition {
@@ -153,7 +170,7 @@ export interface RunState {
   paradox: number
   paradoxLimit: number
   echoes: number
-  deck: CardId[]
+  deck: DeckCard[]
   relics: RelicId[]
   floor: number
   cleared: ClearedNode[]
@@ -166,8 +183,7 @@ export interface RunState {
   layers: MapNode[][]
 }
 
-export interface CardInstance {
-  cardId: CardId
+export interface CardInstance extends DeckCard {
   uid: string
 }
 
@@ -184,8 +200,8 @@ export interface BattleState {
   truth: number
   credibility: number
   witnessAlive: boolean
-  draw: CardId[]
-  discard: CardId[]
+  draw: DeckCard[]
+  discard: DeckCard[]
   hand: CardInstance[]
   energy: number
   placed: PlacedCard[]
@@ -199,6 +215,7 @@ export interface ShopState {
   relic: RelicId
   bought: string[]
   removing: boolean
+  upgrading: boolean
 }
 
 export interface MetaState {
@@ -214,7 +231,7 @@ export type ScreenState =
   | { name: 'map' }
   | { name: 'battle' }
   | { name: 'event'; eventId: EventId }
-  | { name: 'rest'; removing: boolean }
+  | { name: 'rest'; removing: boolean; upgrading: boolean }
   | { name: 'shop'; shop: ShopState }
   | { name: 'reward'; options: CardId[]; gain: number; relicGained?: RelicId }
   | { name: 'chapter'; act: 0 | 1 }

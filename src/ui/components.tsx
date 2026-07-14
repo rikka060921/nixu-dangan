@@ -103,7 +103,7 @@ export function CardButton({
   const disabled = !reward && Boolean(battle && (used || battle.energy < cost))
   return (
     <button
-      className={`card card-${definition.kind} ${battle?.selectedUid === card.uid ? 'is-selected' : ''} ${reward ? 'reward-card' : ''}`}
+      className={`card card-${definition.kind} ${card.upgraded ? 'is-upgraded' : ''} ${battle?.selectedUid === card.uid ? 'is-selected' : ''} ${reward ? 'reward-card' : ''}`}
       data-testid={`card-${card.uid}`}
       type="button"
       disabled={disabled}
@@ -112,11 +112,11 @@ export function CardButton({
     >
       <span className="card-topline">
         <b className="card-cost">{cost}</b>
-        <span>{definition.rarity} · {definition.kind} · {KIND_NAMES[definition.kind]}</span>
+        <span>{card.upgraded ? '已升级 · ' : ''}{definition.rarity} · {definition.kind} · {KIND_NAMES[definition.kind]}</span>
       </span>
       <span className="card-art" aria-hidden="true">{definition.name[0]}</span>
-      <strong className="card-name">{definition.name}</strong>
-      <span className="card-rule">{definition.text}</span>
+      <strong className="card-name">{definition.name}{card.upgraded ? ' +' : ''}</strong>
+      <span className="card-rule">{card.upgraded ? definition.upgradeText : definition.text}</span>
       <em>{definition.flavor}</em>
     </button>
   )
@@ -138,9 +138,9 @@ export function SideArchive({ run }: { run: RunState }) {
         <p className="eyebrow">DECK</p>
         <h3>当前牌组 · {run.deck.length} 张</h3>
         <div className="deck-mini">
-          {run.deck.slice(0, 10).map((cardId, index) => {
-            const card = CARDS[cardId]
-            return <span className={`mini-card card-${card.kind}`} key={`${cardId}-${index}`}>{card.kind} · {card.name}</span>
+          {run.deck.slice(0, 10).map((deckCard, index) => {
+            const card = CARDS[deckCard.cardId]
+            return <span className={`mini-card card-${card.kind} ${deckCard.upgraded ? 'is-upgraded' : ''}`} key={`${deckCard.cardId}-${index}`}>{card.kind} · {card.name}{deckCard.upgraded ? ' +' : ''}</span>
           })}
         </div>
       </section>

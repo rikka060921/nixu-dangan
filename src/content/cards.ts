@@ -17,6 +17,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['防护'],
     cost: 1,
     text: '在固定事件前生效：抵挡该事件造成的时间线损伤。',
+    upgradeText: '抵挡该事件造成的时间线损伤；若及时生效，真相 +1。',
     flavor: '不阻止悖论、失去真相或可信度变化。',
   },
   rescue: {
@@ -27,6 +28,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['防护', '真相'],
     cost: 1,
     text: '置于「现在」：真相 +1，并保护证人。',
+    upgradeText: '置于「现在」：真相 +2，并保护证人。',
     flavor: '正确的行动需要正确的时刻。',
   },
   ledger: {
@@ -37,6 +39,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['真相'],
     cost: 1,
     text: '真相 +2；若证人存活，改为 +3。',
+    upgradeText: '真相 +3；若证人存活，改为 +4。',
     flavor: '灰烬没有烧掉所有数字。',
   },
   clarify: {
@@ -47,6 +50,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['可信度'],
     cost: 1,
     text: '可信度 +1；在事件前可破解谣言。',
+    upgradeText: '可信度 +2；在事件前破解谣言时，真相 +1。',
     flavor: '事实需要赶在声音前面。',
   },
   memory: {
@@ -57,6 +61,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['改写', '真相', '悖论'],
     cost: 2,
     text: '真相 +3，悖论 +2；置于过去时真相 +4。',
+    upgradeText: '真相 +3，悖论 +1；置于过去时真相 +4。',
     flavor: '记忆可以重写证据。',
   },
   anchor: {
@@ -67,6 +72,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['锚定', '稳定'],
     cost: 1,
     text: '在事件前锚定真相，悖论 -1。',
+    upgradeText: '在事件前锚定真相，悖论 -2。',
     flavor: '把一页纸钉在世界上。',
   },
   alibi: {
@@ -77,6 +83,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['可信度', '真相', '悖论'],
     cost: 1,
     text: '可信度 +2，真相 +1，悖论 +2。',
+    upgradeText: '可信度 +2，真相 +2，悖论 +2。',
     flavor: '好用的谎言通常只好用一次。',
   },
   blackout: {
@@ -87,6 +94,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['改写', '悖论'],
     cost: 1,
     text: '置于过去：取消固定事件，悖论 +2。',
+    upgradeText: '置于过去：取消固定事件，时间线 +1，悖论 +2。',
     flavor: '让事故发生在事故之前。',
   },
   annotation: {
@@ -97,6 +105,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['真相', '节奏'],
     cost: 1,
     text: '真相 +1；置于未来时改为 +3。',
+    upgradeText: '真相 +2；置于未来时改为 +4。',
     flavor: '这行字来自尚未写下它的人。',
   },
   echo: {
@@ -106,7 +115,8 @@ export const CARDS: Record<CardId, CardDefinition> = {
     rarity: '非凡',
     tags: ['真相', '多样性'],
     cost: 1,
-    text: '每有一种已打出的不同标签，真相 +1。',
+    text: '每有一种已打出的不同类别，真相 +1。',
+    upgradeText: '真相 +1，再按每种已打出的不同类别获得真相。',
     flavor: '不同的原因指向同一个结果。',
   },
   testimony: {
@@ -117,6 +127,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['可信度', '锚定', '真相'],
     cost: 1,
     text: '可信度 +1；若已有可信度，真相 +2。',
+    upgradeText: '可信度 +1；若已有可信度，真相 +3。',
     flavor: '说出口的话也能成为锚。',
   },
   vow: {
@@ -127,6 +138,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['真相', '悖论'],
     cost: 2,
     text: '真相 +5；若悖论≥4，再 +2，但时间线 -2。',
+    upgradeText: '真相 +6；若悖论≥4，再 +3，但时间线 -2。',
     flavor: '有些证据只能用自己签名。',
   },
   thread: {
@@ -137,6 +149,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['真相', '可信度', '节奏'],
     cost: 0,
     text: '真相 +1；若置于现在，可信度 +1。',
+    upgradeText: '真相 +2；若置于现在，可信度 +1。',
     flavor: '所有名字都被一根线牵住。',
   },
   delay: {
@@ -147,6 +160,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['防护', '真相'],
     cost: 1,
     text: '抵挡本轮灾害；若置于未来，真相 +1。',
+    upgradeText: '抵挡本轮灾害；若置于未来，真相 +2。',
     flavor: '不是阻止，只是让它晚一点。',
   },
   doorplate: {
@@ -157,6 +171,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['防护', '真相'],
     cost: 1,
     text: '抵挡本轮灾害；置于过去时真相 +2。',
+    upgradeText: '抵挡本轮灾害；置于过去时真相 +3。',
     flavor: '门牌先燃烧，房间才决定起火。',
   },
   chorus: {
@@ -167,6 +182,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['真相', '可信度'],
     cost: 2,
     text: '真相 +3；若可信度≥1，再 +2。',
+    upgradeText: '真相 +4；若可信度≥1，再 +2。',
     flavor: '两个人说出同一个未来。',
   },
   rewind: {
@@ -177,6 +193,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['改写', '稳定', '悖论'],
     cost: 2,
     text: '置于过去：取消事件；时间线回复 2，悖论 +2。',
+    upgradeText: '置于过去：取消事件；时间线回复 4，悖论 +2。',
     flavor: '你不是第一次推开这扇门。',
   },
   sealorder: {
@@ -187,6 +204,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['锚定', '真相'],
     cost: 1,
     text: '锚定真相；若本轮已有「证」，再真相 +2。',
+    upgradeText: '锚定真相；若本轮已有「证」，再真相 +3。',
     flavor: '命令写下后，连时间也必须签收。',
   },
   erase: {
@@ -197,6 +215,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['真相', '悖论'],
     cost: 1,
     text: '真相 +4，证人死亡，悖论 +2。',
+    upgradeText: '真相 +5，证人死亡，悖论 +1。',
     flavor: '没有证人，也就没有矛盾。',
   },
   secondhand: {
@@ -207,6 +226,7 @@ export const CARDS: Record<CardId, CardDefinition> = {
     tags: ['真相', '节奏', '悖论'],
     cost: 0,
     text: '置于未来：真相 +2；否则悖论 +1。',
+    upgradeText: '置于未来：真相 +3；否则悖论 +1。',
     flavor: '它每分钟会多走一秒。',
   },
 }

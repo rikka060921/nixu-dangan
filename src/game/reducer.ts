@@ -36,14 +36,19 @@ export type GameAction =
   | { type: 'skip-reward' }
   | { type: 'continue-chapter' }
   | { type: 'choose-event'; choiceId: string }
-  | { type: 'choose-rest'; choice: 'heal' | 'calm' | 'remove' }
+  | { type: 'choose-rest'; choice: 'heal' | 'calm' | 'remove' | 'upgrade' }
+  | { type: 'cancel-rest-edit' }
   | { type: 'remove-rest-card'; index: number }
+  | { type: 'upgrade-rest-card'; index: number }
   | { type: 'buy-shop-card'; index: number }
   | { type: 'buy-shop-relic' }
   | { type: 'buy-shop-heal' }
   | { type: 'open-shop-remove' }
   | { type: 'cancel-shop-remove' }
   | { type: 'remove-shop-card'; index: number }
+  | { type: 'open-shop-upgrade' }
+  | { type: 'cancel-shop-upgrade' }
+  | { type: 'upgrade-shop-card'; index: number }
   | { type: 'leave-shop' }
   | { type: 'clear-notice' }
 
@@ -157,7 +162,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, run: started.run, battle: started.battle, screen: { name: 'battle' } }
     }
     if (node.type === 'event') return { ...state, run, battle: null, screen: { name: 'event', eventId: node.id as EventId } }
-    if (node.type === 'rest') return { ...state, run, battle: null, screen: { name: 'rest', removing: false } }
+    if (node.type === 'rest') return { ...state, run, battle: null, screen: { name: 'rest', removing: false, upgrading: false } }
     if (node.type === 'shop') {
       const created = createShop(run)
       return { ...state, run: created.run, battle: null, screen: { name: 'shop', shop: created.shop } }
@@ -208,7 +213,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
 
   if (action.type === 'choose-reward' && state.screen.name === 'reward') {
-    return finishReward(state, { ...state.run, deck: [...state.run.deck, action.cardId] })
+    return finishReward(state, { ...state.run, deck: [...state.run.deck, { cardId: action.cardId, upgraded: false }] })
   }
   if (action.type === 'skip-reward' && state.screen.name === 'reward') {
     return finishReward(state, {
@@ -231,7 +236,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       timeline: Math.min(maxTimeline, Math.max(0, state.run.timeline + (effect.timeline ?? 0))),
       paradox: Math.max(0, state.run.paradox + (effect.paradox ?? 0)),
       echoes: Math.max(0, state.run.echoes + (effect.echoes ?? 0)),
-      deck: [...state.run.deck, ...(effect.addCards ?? [])],
+      deck: [...state.run.deck, ...(effect.addCards ?? []).map((cardId) => ({ cardId, upgraded: false }))],
       relics: effect.addRelic && !state.run.relics.includes(effect.addRelic)
         ? [...state.run.relics, effect.addRelic]
         : [...state.run.relics],
@@ -241,7 +246,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     return advanceToMap(state, run)
   }
   if (action.type === 'choose-rest' && state.screen.name === 'rest') {
-    if (action.choice === 'remove') return { ...state, screen: { name: 'rest', removing: true } }
+    if (action.choice === 'remove') return { ...state, screen: { name: 'rest', removing: true, upgrading: false } }
+    if (action.choice === 'upgrade') return { ...state, screen: { name: 'rest', removing: false, upgrading: true } }
     const run = { ...state.run, story: [...state.run.story] }
     if (action.choice === 'heal') {
       run.timeline = Math.min(run.maxTimeline, run.timeline + 10)
@@ -252,6 +258,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     return advanceToMap(state, run)
   }
+  if (action.type === 'cancel-rest-edit' && state.screen.name === 'rest') {
+    return { ...state, screen: { name: 'rest', removing: false, upgrading: false } }
+  }
   if (action.type === 'remove-rest-card' && state.screen.name === 'rest' && state.screen.removing) {
     if (!state.run.deck[action.index]) return state
     const deck = [...state.run.deck]
@@ -259,7 +268,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     return advanceToMap(state, {
       ...state.run,
       deck,
-      story: [...state.run.story, `你在回声室烧掉了「${CARDS[removed].name}」。`],
+      story: [...state.run.story, `你在回声室烧掉了「${CARDS[removed.cardId].name}」。`],
+    })
+  }
+  if (action.type === 'upgrade-rest-card' && state.screen.name === 'rest' && state.screen.upgrading) {
+    const card = state.run.deck[action.index]
+    if (!card || card.upgraded) return state
+    const deck = [...state.run.deck]
+    deck[action.index] = { ...card, upgraded: true }
+    return advanceToMap(state, {
+      ...state.run,
+      deck,
+      story: [...state.run.story, `你在回声室校注了「${CARDS[card.cardId].name}」。`],
     })
   }
 
@@ -270,7 +290,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const cardId = shop.cards[action.index]
       if (!cardId || shop.bought.includes(key) || state.run.echoes < 12) return state
       shop.bought.push(key)
-      return updateShop(state, { ...state.run, echoes: state.run.echoes - 12, deck: [...state.run.deck, cardId] }, shop)
+      return updateShop(state, { ...state.run, echoes: state.run.echoes - 12, deck: [...state.run.deck, { cardId, upgraded: false }] }, shop)
     }
     if (action.type === 'buy-shop-relic') {
       if (shop.bought.includes('relic') || state.run.echoes < 25) return state
@@ -288,19 +308,38 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     if (action.type === 'open-shop-remove') {
       if (shop.bought.includes('remove') || state.run.echoes < 15) return state
-      return updateShop(state, state.run, { ...shop, removing: true })
+      return updateShop(state, state.run, { ...shop, removing: true, upgrading: false })
     }
     if (action.type === 'cancel-shop-remove') return updateShop(state, state.run, { ...shop, removing: false })
     if (action.type === 'remove-shop-card') {
-      const cardId = state.run.deck[action.index]
-      if (!cardId || shop.bought.includes('remove') || state.run.echoes < 15) return state
+      const deckCard = state.run.deck[action.index]
+      if (!deckCard || shop.bought.includes('remove') || state.run.echoes < 15) return state
       const deck = [...state.run.deck]
       deck.splice(action.index, 1)
       shop.bought.push('remove')
       return updateShop(
-        { ...state, notice: `已删除「${CARDS[cardId].name}」。` },
+        { ...state, notice: `已删除「${CARDS[deckCard.cardId].name}」。` },
         { ...state.run, echoes: state.run.echoes - 15, deck },
         { ...shop, removing: false },
+      )
+    }
+    if (action.type === 'open-shop-upgrade') {
+      if (shop.bought.includes('upgrade') || state.run.echoes < 18) return state
+      return updateShop(state, state.run, { ...shop, removing: false, upgrading: true })
+    }
+    if (action.type === 'cancel-shop-upgrade') {
+      return updateShop(state, state.run, { ...shop, upgrading: false })
+    }
+    if (action.type === 'upgrade-shop-card') {
+      const card = state.run.deck[action.index]
+      if (!card || card.upgraded || shop.bought.includes('upgrade') || state.run.echoes < 18) return state
+      const deck = [...state.run.deck]
+      deck[action.index] = { ...card, upgraded: true }
+      shop.bought.push('upgrade')
+      return updateShop(
+        { ...state, notice: `已升级「${CARDS[card.cardId].name}」。` },
+        { ...state.run, echoes: state.run.echoes - 18, deck },
+        { ...shop, upgrading: false },
       )
     }
     if (action.type === 'leave-shop') return advanceToMap(state, state.run)
