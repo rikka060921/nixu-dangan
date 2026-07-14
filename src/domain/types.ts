@@ -2,6 +2,8 @@ export const ERAS = ['过去', '现在', '未来'] as const
 
 export type Era = 0 | 1 | 2
 export type CardKind = '因' | '证' | '改' | '锚' | '悖'
+export type CardRarity = '普通' | '非凡' | '稀有'
+export type CardTag = '真相' | '防护' | '可信度' | '改写' | '锚定' | '悖论' | '节奏' | '多样性' | '稳定'
 export type CardId =
   | 'seal'
   | 'rescue'
@@ -37,14 +39,35 @@ export type IncidentId =
   | 'toll'
   | 'silence'
   | 'inversion'
-export type EncounterId = 'fire' | 'mirror' | 'bell' | 'twins' | 'faceless' | 'boss'
+export type EncounterId =
+  | 'fire'
+  | 'mirror'
+  | 'bell'
+  | 'twins'
+  | 'faceless'
+  | 'curator'
+  | 'station'
+  | 'hospital'
+  | 'press'
+  | 'chorus-elite'
+  | 'undertaker'
+  | 'clockmaker'
+  | 'vault'
+  | 'tomorrow'
+  | 'city'
+  | 'double'
+  | 'null'
+  | 'boss'
 export type ChallengeId = 'standard' | 'paradox' | 'zero'
 export type NodeType = 'battle' | 'elite' | 'boss' | 'event' | 'rest' | 'shop'
+export type EventId = 'telegram' | 'photo' | 'platform' | 'obituary' | 'unborn-letter' | 'zero-key'
 
 export interface CardDefinition {
   id: CardId
   name: string
   kind: CardKind
+  rarity: CardRarity
+  tags: CardTag[]
   cost: number
   text: string
   flavor: string
@@ -68,6 +91,7 @@ export interface EncounterDefinition {
   id: EncounterId
   name: string
   type: string
+  rank: 'normal' | 'elite' | 'boss'
   target: number
   incidents: IncidentId[]
   story: string
@@ -90,6 +114,32 @@ export interface MapNode {
   title: string
   sub: string
   description: string
+}
+
+export interface EventEffect {
+  timeline?: number
+  maxTimeline?: number
+  paradox?: number
+  echoes?: number
+  addCards?: CardId[]
+  addRelic?: RelicId
+}
+
+export interface EventChoiceDefinition {
+  id: string
+  icon: string
+  title: string
+  description: string
+  result: string
+  story: string
+  effect: EventEffect
+}
+
+export interface EventDefinition {
+  id: EventId
+  title: string
+  narrative: string
+  choices: EventChoiceDefinition[]
 }
 
 export interface ClearedNode {
@@ -163,10 +213,11 @@ export type ScreenState =
   | { name: 'title' }
   | { name: 'map' }
   | { name: 'battle' }
-  | { name: 'event'; eventId: 'telegram' | 'photo' }
+  | { name: 'event'; eventId: EventId }
   | { name: 'rest'; removing: boolean }
   | { name: 'shop'; shop: ShopState }
   | { name: 'reward'; options: CardId[]; gain: number; relicGained?: RelicId }
+  | { name: 'chapter'; act: 0 | 1 }
   | { name: 'ending'; won: boolean; reason: string; inkGain: number }
 
 export interface GameState {
@@ -179,4 +230,3 @@ export interface GameState {
   resumable: GameState | null
   notice?: string
 }
-

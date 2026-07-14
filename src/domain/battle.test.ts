@@ -109,7 +109,8 @@ describe('causal resolution', () => {
     expect(early.run.paradox).toBe(0)
     expect(early.battle.truth).toBe(1)
     expect(late.run.paradox).toBe(1)
-    expect(late.battle.credibility).toBe(0)
+    expect(late.battle.credibility).toBe(1)
+    expect(late.battle.truth).toBe(0)
   })
 
   it('gives emergency evacuation its special effect only in the present', () => {
@@ -137,5 +138,28 @@ describe('causal resolution', () => {
     expect(result.outcome).toBe('run-lost')
     expect(result.reason).toContain('悖论')
   })
-})
 
+  it('does not let evidence from the future retroactively answer a present silence', () => {
+    const run = makeRun()
+    const result = resolveTimeline(run, makeBattle(['ledger'], 'silence', [2]))
+    expect(result.run.timeline).toBe(run.timeline - 4)
+    expect(result.battle.truth).toBe(3)
+    expect(result.battle.log.join('')).toContain('全城失语')
+  })
+
+  it('resolves a past inversion before a future rewrite card exists', () => {
+    const run = makeRun()
+    const result = resolveTimeline(run, makeBattle(['memory'], 'inversion', [2]))
+    expect(result.run.paradox).toBe(4)
+    expect(result.battle.log.join('')).toContain('因果倒置：悖论 +2')
+  })
+
+  it('stops the timeline immediately at the paradox limit instead of resolving later cards', () => {
+    const run = { ...makeRun(), paradox: 7 }
+    const battle = makeBattle(['secondhand', 'ledger'], 'fire', [0, 2])
+    const result = resolveTimeline(run, battle)
+    expect(result.outcome).toBe('run-lost')
+    expect(result.battle.truth).toBe(0)
+    expect(result.battle.log.join('')).not.toContain('账本残页')
+  })
+})

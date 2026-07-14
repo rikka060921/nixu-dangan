@@ -1,5 +1,6 @@
 import { CARDS } from '../content/cards'
-import { CHALLENGES, ENCOUNTERS, INCIDENTS, RELICS } from '../content/gameContent'
+import { EVENTS } from '../content/events'
+import { ACT_NAMES, CHALLENGES, CHAPTER_ENDINGS, ENCOUNTERS, INCIDENTS, RELICS } from '../content/gameContent'
 import { currentIncident } from '../domain/battle'
 import { getPlacementHint } from '../domain/placementHint'
 import { ERAS } from '../domain/types'
@@ -60,17 +61,22 @@ export function TitleScreen({ state, dispatch }: { state: GameState; dispatch: G
 
 export function MapScreen({ state, dispatch }: { state: GameState & { run: RunState }; dispatch: GameDispatch }) {
   const { run } = state
+  const act = Math.min(ACT_NAMES.length - 1, Math.floor(run.floor / 6))
+  const actStart = act * 6
+  const visibleLayers = run.layers.slice(actStart, actStart + 6)
   return (
     <section className="map-layout screen-enter">
       <div className="map-main panel">
         <header className="section-heading">
-          <div><p className="eyebrow">SELECT A RECORD</p><h2>选择下一份档案</h2></div>
+          <div><p className="eyebrow">ACT {act + 1} · {ACT_NAMES[act]}</p><h2>选择下一份档案</h2></div>
           <p>相同种子会得到相同路线、事件顺序、奖励与商店库存。</p>
         </header>
         <div className="route">
-          {run.layers.map((layer, floor) => (
+          {visibleLayers.map((layer, offset) => {
+            const floor = actStart + offset
+            return (
             <div className="route-layer" key={floor}>
-              <span className="layer-number">{String(floor + 1).padStart(2, '0')}</span>
+              <span className="layer-number">{String(offset + 1).padStart(2, '0')}</span>
               {layer.map((node) => {
                 const enabled = floor === run.floor
                 const cleared = run.cleared.some((entry) => entry.floor === floor && entry.id === node.id)
@@ -88,7 +94,7 @@ export function MapScreen({ state, dispatch }: { state: GameState & { run: RunSt
                 )
               })}
             </div>
-          ))}
+          )})}
         </div>
       </div>
       <SideArchive run={run} />
@@ -174,22 +180,21 @@ export function BattleScreen({ state, dispatch }: { state: GameState & { run: Ru
 }
 
 export function EventScreen({ state, dispatch }: { state: GameState & { run: RunState; screen: Extract<GameState['screen'], { name: 'event' }> }; dispatch: GameDispatch }) {
-  const telegram = state.screen.eventId === 'telegram'
+  const event = EVENTS[state.screen.eventId]
   return (
-    <StoryPanel eyebrow="ANOMALOUS RECORD" chapter={state.run.currentTitle} title={telegram ? '无字电报' : '失真的合影'}>
-      <p className="narrative">{telegram ? '电报纸上没有一个字。你把它靠近灯火，未来的墨迹才慢慢浮现：仓库不是灾难的起点，档案馆才是。' : '照片里站着四个人。证人、监察官、档案管理员，以及一个本不该在场的你。照片背面写着：“剪掉一个人，时间就会忘记他。”'}</p>
+    <StoryPanel eyebrow="ANOMALOUS RECORD" chapter={state.run.currentTitle} title={event.title}>
+      <p className="narrative">{event.narrative}</p>
       <div className="choices">
-        {telegram ? (
-          <>
-            <Choice icon="读" title="让未来的文字完全显现" description="将「逆序批注」加入牌组，但接触未来会产生悖论。" result="+1 悖论" onClick={() => dispatch({ type: 'choose-event', choice: 'read' })} />
-            <Choice icon="焚" title="在读完之前烧掉电报" description="你没有得到答案，但时间线暂时稳定。" result="回复 6" onClick={() => dispatch({ type: 'choose-event', choice: 'burn' })} />
-          </>
-        ) : (
-          <>
-            <Choice icon="留" title="保留照片中的自己" description="承认另一条时间线的存在，并取得一枚时间锚。" result="最大时间线 -3" onClick={() => dispatch({ type: 'choose-event', choice: 'keep' })} />
-            <Choice icon="剪" title="把自己从照片里剪掉" description="忘掉一段危险记忆，让悖论下降。" result="悖论 -3" onClick={() => dispatch({ type: 'choose-event', choice: 'cut' })} />
-          </>
-        )}
+        {event.choices.map((choice) => (
+          <Choice
+            icon={choice.icon}
+            title={choice.title}
+            description={choice.description}
+            result={choice.result}
+            onClick={() => dispatch({ type: 'choose-event', choiceId: choice.id })}
+            key={choice.id}
+          />
+        ))}
       </div>
     </StoryPanel>
   )
@@ -227,6 +232,24 @@ export function RewardScreen({ state, dispatch }: { state: GameState & { run: Ru
         return <CardButton card={instance} reward key={instance.uid} onClick={() => dispatch({ type: 'choose-reward', cardId })} />
       })}</div>
       <button className="text-button reward-skip" type="button" onClick={() => dispatch({ type: 'skip-reward' })}>跳过奖励 · 修复 3 点时间线</button>
+    </section>
+  )
+}
+
+export function ChapterScreen({ state, dispatch }: { state: GameState & { run: RunState; screen: Extract<GameState['screen'], { name: 'chapter' }> }; dispatch: GameDispatch }) {
+  const chapter = CHAPTER_ENDINGS[state.screen.act]
+  return (
+    <section className="chapter-ending panel screen-enter">
+      <div className="chapter-mark" aria-hidden="true">{state.screen.act + 1}</div>
+      <div>
+        <p className="eyebrow">{chapter.eyebrow}</p>
+        <span className="chapter">第{state.screen.act === 0 ? '一' : '二'}幕结案</span>
+        <h1>{chapter.title}</h1>
+        <p className="narrative">{chapter.narrative}</p>
+        <blockquote>{chapter.reveal}</blockquote>
+        <p className="chapter-recovery">章节校准 · 时间线 +6 · 悖论 -3</p>
+        <PrimaryButton onClick={() => dispatch({ type: 'continue-chapter' })}>{chapter.next}</PrimaryButton>
+      </div>
     </section>
   )
 }

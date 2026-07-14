@@ -2,7 +2,10 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { LEGACY_SAVE_KEY, loadSession } from './storage'
+import { MAP_TEMPLATES } from '../content/gameContent'
+import { createRun } from '../domain/run'
+import type { GameState } from '../domain/types'
+import { LEGACY_SAVE_KEY, loadSession, VERSION3_SAVE_KEY } from './storage'
 
 describe('legacy save migration', () => {
   beforeEach(() => localStorage.clear())
@@ -50,5 +53,57 @@ describe('legacy save migration', () => {
     if (migrated?.screen.name !== 'shop') throw new Error('shop screen expected')
     expect(migrated.screen.shop.bought).toEqual(['card-0'])
   })
-})
 
+  it('extends a one-act V3 campaign and converts its former final boss into the first chapter boss', () => {
+    const run = createRun('old-campaign', 'standard', {
+      runs: 0,
+      wins: 0,
+      ink: 0,
+      tutorialDone: false,
+      lastMode: 'standard',
+    })
+    const oldRun = {
+      ...run,
+      layers: run.layers.slice(0, 6).map((layer, index) => index === 5 ? [{ ...MAP_TEMPLATES.boss }] : layer),
+      floor: 5,
+      currentNode: 'boss',
+      currentTitle: '零时档案',
+    }
+    const state: GameState = {
+      screen: { name: 'battle' },
+      meta: { runs: 0, wins: 0, ink: 0, tutorialDone: false, lastMode: 'standard' },
+      selectedMode: 'standard',
+      seedInput: 'old-campaign',
+      run: oldRun,
+      battle: {
+        encounterId: 'boss',
+        encounterTarget: 20,
+        incidentOrder: ['rewrite', 'fire', 'purge', 'collapse', 'collapse'],
+        round: 0,
+        truth: 4,
+        credibility: 0,
+        witnessAlive: true,
+        draw: [],
+        discard: [],
+        hand: [],
+        energy: 3,
+        placed: [],
+        nextCardUid: 0,
+        log: [],
+      },
+      resumable: null,
+    }
+    localStorage.setItem(VERSION3_SAVE_KEY, JSON.stringify({
+      format: 'reverse-archive-save',
+      version: 3,
+      state,
+    }))
+
+    const migrated = loadSession()
+    expect(migrated?.run?.layers).toHaveLength(18)
+    expect(migrated?.run?.layers[5][0].id).toBe('curator')
+    expect(migrated?.run?.currentNode).toBe('curator')
+    expect(migrated?.battle?.encounterId).toBe('curator')
+    expect(migrated?.notice).toContain('三幕')
+  })
+})

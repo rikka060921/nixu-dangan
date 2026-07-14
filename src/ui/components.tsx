@@ -1,7 +1,7 @@
 import type { Dispatch, ReactNode } from 'react'
 
 import { CARDS, KIND_NAMES } from '../content/cards'
-import { CHALLENGES, RELICS } from '../content/gameContent'
+import { ACT_NAMES, CHALLENGES, RELICS } from '../content/gameContent'
 import { effectiveCost } from '../domain/battle'
 import type { BattleState, CardInstance, GameState, RunState } from '../domain/types'
 import type { GameAction } from '../game/reducer'
@@ -49,6 +49,7 @@ export function Header({
 }
 
 export function Hud({ run, meta }: { run: RunState; meta: GameState['meta'] }) {
+  const act = Math.min(ACT_NAMES.length - 1, Math.floor(run.floor / 6))
   const stats = [
     ['时间线', `${run.timeline}/${run.maxTimeline}`, 'timeline'],
     ['悖论', `${run.paradox}/${run.paradoxLimit}`, 'paradox'],
@@ -59,8 +60,8 @@ export function Hud({ run, meta }: { run: RunState; meta: GameState['meta'] }) {
   return (
     <section className="hud" aria-label="调查状态">
       <p className="mission">
-        <b>调查进度 {Math.min(run.floor + 1, 6)} / 6</b>
-        <span>{run.currentTitle} · {CHALLENGES[run.mode].name} · 种子 {run.seed}</span>
+        <b>调查进度 {Math.min(run.floor + 1, run.layers.length)} / {run.layers.length}</b>
+        <span>第{['一', '二', '三'][act]}幕「{ACT_NAMES[act]}」 · {run.currentTitle} · {CHALLENGES[run.mode].name} · 种子 {run.seed}</span>
       </p>
       <dl className="stat-grid">
         {stats.map(([label, value, className]) => (
@@ -111,7 +112,7 @@ export function CardButton({
     >
       <span className="card-topline">
         <b className="card-cost">{cost}</b>
-        <span>{definition.kind} · {KIND_NAMES[definition.kind]}</span>
+        <span>{definition.rarity} · {definition.kind} · {KIND_NAMES[definition.kind]}</span>
       </span>
       <span className="card-art" aria-hidden="true">{definition.name[0]}</span>
       <strong className="card-name">{definition.name}</strong>
@@ -153,4 +154,3 @@ export function SideArchive({ run }: { run: RunState }) {
     </aside>
   )
 }
-

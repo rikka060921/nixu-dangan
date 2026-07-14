@@ -5,6 +5,7 @@ import { useGame } from './game/useGame'
 import { Header, Hud } from './ui/components'
 import {
   BattleScreen,
+  ChapterScreen,
   EndingScreen,
   EventScreen,
   MapScreen,
@@ -43,6 +44,9 @@ export function App() {
     if (state.screen.name === 'reward') {
       content = <RewardScreen state={state as GameState & { run: RunState; screen: Extract<GameState['screen'], { name: 'reward' }> }} dispatch={dispatch} />
     }
+    if (state.screen.name === 'chapter') {
+      content = <ChapterScreen state={state as GameState & { run: RunState; screen: Extract<GameState['screen'], { name: 'chapter' }> }} dispatch={dispatch} />
+    }
     if (state.screen.name === 'ending') {
       content = <EndingScreen state={state as GameState & { run: RunState; screen: Extract<GameState['screen'], { name: 'ending' }> }} dispatch={dispatch} />
     }
@@ -79,4 +83,3 @@ function Manual({ onClose }: { onClose: () => void }) {
     </div>
   )
 }
-

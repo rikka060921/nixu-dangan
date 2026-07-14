@@ -1,4 +1,5 @@
 import { CARDS } from '../content/cards'
+import { EVENTS } from '../content/events'
 import { CHALLENGES, ENCOUNTERS, RELICS } from '../content/gameContent'
 import {
   placeSelectedCard,
@@ -15,7 +16,7 @@ import {
   pickEliteRelic,
   pickRewardOptions,
 } from '../domain/run'
-import type { CardId, ChallengeId, Era, GameState, MetaState, RelicId, RunState } from '../domain/types'
+import type { CardId, ChallengeId, Era, EventId, GameState, MetaState, RelicId, RunState } from '../domain/types'
 import { loadMeta, loadSession } from './storage'
 
 export type GameAction =
@@ -33,7 +34,8 @@ export type GameAction =
   | { type: 'resolve-timeline' }
   | { type: 'choose-reward'; cardId: CardId }
   | { type: 'skip-reward' }
-  | { type: 'choose-event'; choice: 'read' | 'burn' | 'keep' | 'cut' }
+  | { type: 'continue-chapter' }
+  | { type: 'choose-event'; choiceId: string }
   | { type: 'choose-rest'; choice: 'heal' | 'calm' | 'remove' }
   | { type: 'remove-rest-card'; index: number }
   | { type: 'buy-shop-card'; index: number }
@@ -71,6 +73,23 @@ function withCurrentNode(run: RunState, nodeId: string): RunState | null {
 
 function advanceToMap(state: GameState, run: RunState): GameState {
   return { ...state, run: advanceNode(run), battle: null, screen: { name: 'map' } }
+}
+
+function finishReward(state: GameState, run: RunState): GameState {
+  const completedAct = run.floor === 5 ? 0 : run.floor === 11 ? 1 : undefined
+  if (completedAct === undefined) return advanceToMap(state, run)
+  const recalibrated: RunState = {
+    ...run,
+    timeline: Math.min(run.maxTimeline, run.timeline + 6),
+    paradox: Math.max(0, run.paradox - 3),
+    story: [...run.story, `第${completedAct === 0 ? '一' : '二'}幕结案：时间线 +6，悖论 -3。`],
+  }
+  return {
+    ...state,
+    run: advanceNode(recalibrated),
+    battle: null,
+    screen: { name: 'chapter', act: completedAct },
+  }
 }
 
 function finishRun(state: GameState, run: RunState, won: boolean, reason: string): GameState {
@@ -137,7 +156,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const started = startBattle(run, node.id as Parameters<typeof startBattle>[1])
       return { ...state, run: started.run, battle: started.battle, screen: { name: 'battle' } }
     }
-    if (node.type === 'event') return { ...state, run, battle: null, screen: { name: 'event', eventId: node.id === 'photo' ? 'photo' : 'telegram' } }
+    if (node.type === 'event') return { ...state, run, battle: null, screen: { name: 'event', eventId: node.id as EventId } }
     if (node.type === 'rest') return { ...state, run, battle: null, screen: { name: 'rest', removing: false } }
     if (node.type === 'shop') {
       const created = createShop(run)
@@ -160,8 +179,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     if (result.outcome === 'run-lost') return finishRun(state, result.run, false, result.reason ?? '这条历史无法成立。')
     if (result.outcome === 'run-won') return finishRun(state, result.run, true, '你阻止了零点火灾。')
     if (result.outcome === 'battle-won') {
-      const elite = result.battle.encounterId === 'twins' || result.battle.encounterId === 'faceless'
-      const gain = elite ? 18 : 12
+      const rank = ENCOUNTERS[result.battle.encounterId].rank
+      const gain = rank === 'boss' ? 24 : rank === 'elite' ? 18 : 12
       let run: RunState = {
         ...result.run,
         echoes: result.run.echoes + gain,
@@ -171,7 +190,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ],
       }
       let relicGained: RelicId | undefined
-      if (elite) {
+      if (rank === 'elite' || rank === 'boss') {
         const relicResult = pickEliteRelic(run)
         run = relicResult.run
         relicGained = relicResult.relic
@@ -189,35 +208,36 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
 
   if (action.type === 'choose-reward' && state.screen.name === 'reward') {
-    return advanceToMap(state, { ...state.run, deck: [...state.run.deck, action.cardId] })
+    return finishReward(state, { ...state.run, deck: [...state.run.deck, action.cardId] })
   }
   if (action.type === 'skip-reward' && state.screen.name === 'reward') {
-    return advanceToMap(state, {
+    return finishReward(state, {
       ...state.run,
       timeline: Math.min(state.run.maxTimeline, state.run.timeline + 3),
     })
   }
+  if (action.type === 'continue-chapter' && state.screen.name === 'chapter') {
+    return { ...state, screen: { name: 'map' } }
+  }
   if (action.type === 'choose-event' && state.screen.name === 'event') {
-    let run = { ...state.run, deck: [...state.run.deck], story: [...state.run.story] }
-    if (action.choice === 'read') {
-      run.deck.push('annotation')
-      run.paradox += 1
-      run.story.push('无字电报证明：档案馆才是灾难起点。')
+    const event = EVENTS[state.screen.eventId]
+    const choice = event.choices.find((candidate) => candidate.id === action.choiceId)
+    if (!choice) return state
+    const effect = choice.effect
+    const maxTimeline = Math.max(1, state.run.maxTimeline + (effect.maxTimeline ?? 0))
+    let run: RunState = {
+      ...state.run,
+      maxTimeline,
+      timeline: Math.min(maxTimeline, Math.max(0, state.run.timeline + (effect.timeline ?? 0))),
+      paradox: Math.max(0, state.run.paradox + (effect.paradox ?? 0)),
+      echoes: Math.max(0, state.run.echoes + (effect.echoes ?? 0)),
+      deck: [...state.run.deck, ...(effect.addCards ?? [])],
+      relics: effect.addRelic && !state.run.relics.includes(effect.addRelic)
+        ? [...state.run.relics, effect.addRelic]
+        : [...state.run.relics],
+      story: [...state.run.story, choice.story],
     }
-    if (action.choice === 'burn') {
-      run.timeline = Math.min(run.maxTimeline, run.timeline + 6)
-      run.story.push('你烧掉未来的电报，只记住了纸灰的形状。')
-    }
-    if (action.choice === 'keep') {
-      run.maxTimeline -= 3
-      run.timeline = Math.min(run.timeline, run.maxTimeline)
-      run.deck.push('anchor')
-      run.story.push('合影里多出的自己，来自第零号时间线。')
-    }
-    if (action.choice === 'cut') {
-      run.paradox = Math.max(0, run.paradox - 3)
-      run.story.push('照片忘记了你，但镜子没有。')
-    }
+    run = { ...run, timeline: Math.min(run.timeline, run.maxTimeline) }
     return advanceToMap(state, run)
   }
   if (action.type === 'choose-rest' && state.screen.name === 'rest') {
@@ -288,4 +308,3 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
   return state
 }
-

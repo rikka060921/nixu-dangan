@@ -255,14 +255,17 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
   }
   const incident = currentIncident(battle)
   const messages: string[] = []
-  const beforeTimeline = run.timeline
-  const paradoxBefore = run.paradox
   const kinds = new Set<string>()
   const flags = { protectedNow: false, anchored: false, clarified: false, cancelled: false }
   let firstEvidence = true
+  let paradoxIncreased = false
+  let terminalReached = false
 
   const ordered = battle.placed.map((card, index) => ({ card, index })).sort((a, b) => a.card.era - b.card.era || a.index - b.index)
-  for (const { card: placed } of ordered) {
+  timelineResolution:
+  for (const era of [0, 1, 2] as const) {
+    for (const { card: placed } of ordered.filter((entry) => entry.card.era === era)) {
+      const paradoxBeforeCard = run.paradox
     const card = CARDS[placed.cardId]
     const before = placed.era <= incident.era
     kinds.add(card.kind)
@@ -398,20 +401,35 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
         messages.push('秒针错位：悖论 +1。')
       }
     }
+      if (run.paradox > paradoxBeforeCard) paradoxIncreased = true
+      if (run.timeline <= 0 || run.paradox >= run.paradoxLimit) {
+        terminalReached = true
+        break timelineResolution
+      }
+    }
+
+    if (era === incident.era && !flags.cancelled) {
+      const paradoxBeforeIncident = run.paradox
+      applyIncident(incident.id, run, battle, flags, kinds, messages)
+      if (run.paradox > paradoxBeforeIncident) paradoxIncreased = true
+      if (run.timeline <= 0 || run.paradox >= run.paradoxLimit) {
+        terminalReached = true
+        break timelineResolution
+      }
+    }
   }
 
-  if (!flags.cancelled) applyIncident(incident.id, run, battle, flags, kinds, messages)
   if (flags.cancelled && run.relics.includes('ash')) {
     run.timeline = Math.min(run.maxTimeline, run.timeline + 2)
     messages.push('灰烬印章：时间线 +2。')
   }
-  if (run.paradox > paradoxBefore && run.relics.includes('mirror')) {
+  if (paradoxIncreased && run.relics.includes('mirror')) {
     battle.truth += 1
     messages.push('镜面残片记录了矛盾：真相 +1。')
   }
   battle.log = messages
 
-  if (run.timeline <= 0 || run.paradox >= run.paradoxLimit) {
+  if (terminalReached || run.timeline <= 0 || run.paradox >= run.paradoxLimit) {
     return {
       run,
       battle,
@@ -436,7 +454,5 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
     round: battle.round + 1,
   }
   const next = drawCards(run, nextBattle, 5)
-  if (run.timeline < beforeTimeline) next.battle.log = messages
   return { ...next, outcome: 'continue' }
 }
-

@@ -9,6 +9,10 @@ const floorDistribution = Object.fromEntries(
     .sort((left, right) => left - right)
     .map((floor) => [floor, results.filter((result) => result.floor === floor).length]),
 )
+const lossReasonDistribution = Object.fromEntries(
+  [...new Set(results.filter((result) => !result.won).map((result) => result.reason ?? '未结束'))]
+    .map((reason) => [reason, results.filter((result) => !result.won && (result.reason ?? '未结束') === reason).length]),
+)
 
 const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length)
 
@@ -18,7 +22,13 @@ console.log(
       runs: results.length,
       wins: wins.length,
       winRate: wins.length / results.length,
+      actReach: {
+        act2: results.filter((result) => result.floor >= 6).length / results.length,
+        act3: results.filter((result) => result.floor >= 12).length / results.length,
+        cleared: wins.length / results.length,
+      },
       floorDistribution,
+      lossReasonDistribution,
       averageActions: average(results.map((result) => result.actions)),
       averageTerminalTimeline: average(results.map((result) => result.timeline)),
       averageTerminalParadox: average(results.map((result) => result.paradox)),
@@ -27,4 +37,3 @@ console.log(
     2,
   ),
 )
-

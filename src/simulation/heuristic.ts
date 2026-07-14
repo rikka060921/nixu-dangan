@@ -1,4 +1,5 @@
 import { CARDS } from '../content/cards'
+import { EVENTS } from '../content/events'
 import { currentIncident, effectiveCost } from '../domain/battle'
 import type { CardId, GameState, MetaState } from '../domain/types'
 import { gameReducer } from '../game/reducer'
@@ -110,6 +111,7 @@ export interface SimulationResult {
   floor: number
   timeline: number
   paradox: number
+  reason?: string
 }
 
 export function simulateRun(seed: string, actionLimit = 500): SimulationResult {
@@ -131,7 +133,8 @@ export function simulateRun(seed: string, actionLimit = 500): SimulationResult {
       )[0]
       state = gameReducer(state, option ? { type: 'choose-reward', cardId: option } : { type: 'skip-reward' })
     } else if (state.screen.name === 'event') {
-      state = gameReducer(state, { type: 'choose-event', choice: state.screen.eventId === 'telegram' ? 'burn' : 'cut' })
+      const preferredChoice = state.screen.eventId === 'telegram' ? 'burn' : state.screen.eventId === 'photo' ? 'cut' : EVENTS[state.screen.eventId].choices[0].id
+      state = gameReducer(state, { type: 'choose-event', choiceId: preferredChoice })
     } else if (state.screen.name === 'rest') {
       state = gameReducer(state, {
         type: 'choose-rest',
@@ -139,6 +142,8 @@ export function simulateRun(seed: string, actionLimit = 500): SimulationResult {
       })
     } else if (state.screen.name === 'shop') {
       state = gameReducer(state, { type: 'leave-shop' })
+    } else if (state.screen.name === 'chapter') {
+      state = gameReducer(state, { type: 'continue-chapter' })
     }
     actions += 1
   }
@@ -151,10 +156,10 @@ export function simulateRun(seed: string, actionLimit = 500): SimulationResult {
     floor: state.run?.floor ?? 0,
     timeline: state.run?.timeline ?? 0,
     paradox: state.run?.paradox ?? 0,
+    reason: state.screen.name === 'ending' ? state.screen.reason : undefined,
   }
 }
 
 export function describeDeck(state: GameState): string[] {
   return state.run?.deck.map((cardId) => CARDS[cardId].name) ?? []
 }
-

@@ -56,7 +56,7 @@ describe('game reducer loop', () => {
 
     const resolved = gameReducer(event, {
       type: 'choose-event',
-      choice: eventNode.id === 'telegram' ? 'read' : 'keep',
+      choiceId: eventNode.id === 'telegram' ? 'read' : 'keep',
     })
     expect(resolved.screen.name).toBe('map')
     expect(resolved.run?.floor).toBe(1)
@@ -81,6 +81,37 @@ describe('game reducer loop', () => {
     expect(chosen.screen.name).toBe('map')
     expect(chosen.run?.floor).toBe(1)
     expect(chosen.run?.deck).toHaveLength(run.deck.length + 1)
+  })
+
+  it('closes a chapter after its boss reward before opening the next act', () => {
+    const run = {
+      ...createRun('chapter-seed', 'standard', META),
+      floor: 5,
+      currentNode: 'curator',
+      currentTitle: '封馆人',
+    }
+    const battle = {
+      ...winningBattle(),
+      encounterId: 'curator' as const,
+    }
+    const won = gameReducer(
+      { ...titleState(), screen: { name: 'battle' }, run, battle },
+      { type: 'resolve-timeline' },
+    )
+    expect(won.screen.name).toBe('reward')
+    if (won.screen.name !== 'reward') throw new Error('reward screen expected')
+    expect(won.screen.relicGained).toBeDefined()
+
+    const rewarded = gameReducer(won, { type: 'choose-reward', cardId: won.screen.options[0] })
+    expect(rewarded.screen).toEqual({ name: 'chapter', act: 0 })
+    expect(rewarded.run?.floor).toBe(6)
+    expect(rewarded.run?.timeline).toBe(Math.min(run.maxTimeline, won.run!.timeline + 6))
+    expect(rewarded.run?.paradox).toBe(Math.max(0, won.run!.paradox - 3))
+    expect(rewarded.run?.cleared.at(-1)).toEqual({ floor: 5, id: 'curator' })
+
+    const continued = gameReducer(rewarded, { type: 'continue-chapter' })
+    expect(continued.screen.name).toBe('map')
+    expect(continued.run?.layers[continued.run.floor][0].id).toMatch(/station|hospital|press/)
   })
 
   it('spends echoes exactly once for each shop slot', () => {
@@ -114,8 +145,7 @@ describe('game reducer loop', () => {
     )
     expect(lost.screen.name).toBe('ending')
     expect(lost.meta.runs).toBe(1)
-    expect(lost.meta.ink).toBe(3)
+    expect(lost.meta.ink).toBe(2)
     expect(lost.resumable).toBeNull()
   })
 })
-

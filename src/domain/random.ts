@@ -29,3 +29,34 @@ export function shuffleSeeded<T>(items: readonly T[], initialState: number): { i
   return { items: result, state }
 }
 
+export function sampleWeighted<T>(
+  items: readonly T[],
+  getWeight: (item: T) => number,
+  count: number,
+  initialState: number,
+): { items: T[]; state: number } {
+  const pool = [...items]
+  const selected: T[] = []
+  let state = initialState
+
+  while (pool.length && selected.length < count) {
+    const weights = pool.map((item) => Math.max(0, getWeight(item)))
+    const total = weights.reduce((sum, weight) => sum + weight, 0)
+    const random = nextRandom(state)
+    state = random.state
+    let threshold = random.value * (total || pool.length)
+    let selectedIndex = pool.length - 1
+
+    for (let index = 0; index < pool.length; index += 1) {
+      threshold -= total ? weights[index] : 1
+      if (threshold <= 0) {
+        selectedIndex = index
+        break
+      }
+    }
+    selected.push(pool[selectedIndex])
+    pool.splice(selectedIndex, 1)
+  }
+
+  return { items: selected, state }
+}

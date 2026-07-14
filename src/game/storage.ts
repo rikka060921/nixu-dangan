@@ -12,7 +12,8 @@ import type {
 import { buildRandomLayers } from '../domain/run'
 import { seedHash } from '../domain/random'
 
-export const SAVE_KEY = 'reverseArchiveSaveV3'
+export const SAVE_KEY = 'reverseArchiveSaveV4'
+export const VERSION3_SAVE_KEY = 'reverseArchiveSaveV3'
 export const LEGACY_SAVE_KEY = 'reverseArchiveSaveV2'
 export const META_KEY = 'reverseArchiveMeta'
 
@@ -55,7 +56,7 @@ export function saveSession(state: GameState): void {
   if (!hasStorage() || !state.run || state.screen.name === 'ending') return
   const payload = {
     format: 'reverse-archive-save',
-    version: 3,
+    version: 4,
     savedAt: new Date().toISOString(),
     state: { ...state, resumable: null, notice: undefined },
   }
@@ -65,13 +66,45 @@ export function saveSession(state: GameState): void {
 export function clearSession(): void {
   if (!hasStorage()) return
   localStorage.removeItem(SAVE_KEY)
+  localStorage.removeItem(VERSION3_SAVE_KEY)
   localStorage.removeItem(LEGACY_SAVE_KEY)
 }
 
-function readVersion3(raw: string): GameState | null {
+function readVersion4(raw: string): GameState | null {
+  const payload = JSON.parse(raw) as { format?: string; version?: number; state?: GameState }
+  if (payload.format !== 'reverse-archive-save' || payload.version !== 4 || !payload.state?.run) return null
+  return { ...payload.state, resumable: null, notice: '调查存档已恢复。' }
+}
+
+function migrateVersion3(raw: string): GameState | null {
   const payload = JSON.parse(raw) as { format?: string; version?: number; state?: GameState }
   if (payload.format !== 'reverse-archive-save' || payload.version !== 3 || !payload.state?.run) return null
-  return { ...payload.state, resumable: null, notice: '调查存档已恢复。' }
+
+  const oldState = payload.state as GameState
+  const oldRun = oldState.run as RunState
+  const generated = buildRandomLayers(seedHash(oldRun.seed))
+  const legacyCampaign = oldRun.layers.length < 18
+  const layers = legacyCampaign
+    ? generated.layers.map((layer, index) => index < 5 && oldRun.layers[index]?.length ? oldRun.layers[index] : layer)
+    : oldRun.layers
+  const onFormerFinalBoss = legacyCampaign && oldRun.floor === 5 && oldRun.currentNode === 'boss'
+  const run: RunState = {
+    ...oldRun,
+    layers,
+    currentNode: onFormerFinalBoss ? 'curator' : oldRun.currentNode,
+    currentTitle: onFormerFinalBoss ? '封馆人' : oldRun.currentTitle,
+  }
+  const battle = onFormerFinalBoss && oldState.battle?.encounterId === 'boss'
+    ? { ...oldState.battle, encounterId: 'curator' as const, encounterTarget: 18 }
+    : oldState.battle
+
+  return {
+    ...oldState,
+    run,
+    battle,
+    resumable: null,
+    notice: legacyCampaign ? 'V3 存档已扩展为三幕战役。' : 'V3 存档已升级。',
+  }
 }
 
 type LegacyRecord = Record<string, unknown>
@@ -201,7 +234,9 @@ export function loadSession(meta = loadMeta()): GameState | null {
   if (!hasStorage()) return null
   try {
     const current = localStorage.getItem(SAVE_KEY)
-    if (current) return readVersion3(current)
+    if (current) return readVersion4(current)
+    const version3 = localStorage.getItem(VERSION3_SAVE_KEY)
+    if (version3) return migrateVersion3(version3)
     const legacy = localStorage.getItem(LEGACY_SAVE_KEY)
     if (legacy) return migrateLegacy(legacy, meta)
     return null

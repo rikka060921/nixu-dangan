@@ -18,9 +18,8 @@ describe('application smoke flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /逆行钟楼/ }))
     expect(screen.getByRole('heading', { name: '逆行钟楼' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /时间锚/ }))
-    expect(screen.getByRole('button', { name: /放到过去.*锚定真相/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /放到未来.*锚定真相/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /真实记忆/ }))
+    expect(screen.getByRole('button', { name: /放到过去.*真相 \+4/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /放到未来.*真相 \+3/ })).toBeInTheDocument()
   })
 })
-
