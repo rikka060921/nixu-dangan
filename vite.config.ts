@@ -18,7 +18,7 @@ const offlineLicensePlugin = () => ({
 
 export default defineConfig(({ mode }) => ({
   plugins: [react(), ...(mode === 'offline' ? [viteSingleFile(), offlineLicensePlugin()] : [])],
-  base: mode === 'offline' ? './' : undefined,
+  base: mode === 'offline' ? './' : mode === 'pages' ? '/nixu-dangan/' : undefined,
   build: mode === 'offline'
     ? {
         outDir: 'dist-offline',

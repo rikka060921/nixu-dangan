@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:pages": "tsc -b && vite build --mode pages",
     "build:offline": "tsc -b && vite build --mode offline",
     "package:offline": "pnpm build:offline && tsx scripts/package-release.ts",
     "preview": "vite preview",
