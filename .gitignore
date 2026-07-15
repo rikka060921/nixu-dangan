@@ -1,6 +1,8 @@
 node_modules/
 .pnpm-store/
 dist/
+dist-offline/
+release/
 coverage/
 *.log
 *.tsbuildinfo

@@ -4,6 +4,10 @@
 
 当前 `0.1.0-rc.1` 包含十八层三幕战役、20 张可独立升级的卡牌、11 件遗物、18 个战斗案件、6 个异常事件、线索驱动终局，以及 V2 至 V5 的存档迁移与损坏恢复。
 
+## 下载游玩
+
+从 GitHub Releases 下载文件名以 `-offline.zip` 结尾的版本，解压后双击 `Reverse-Archive.html` 即可离线游玩，不需要安装 Node.js。存档保存在打开游戏的浏览器本地。
+
 ## 开发命令
 
 ```bash
@@ -12,6 +16,7 @@ pnpm dev
 pnpm test
 pnpm typecheck
 pnpm build
+pnpm package:offline
 pnpm simulate 1000
 pnpm simulate 1000 balanced
 pnpm simulate 1000 balanced paradox

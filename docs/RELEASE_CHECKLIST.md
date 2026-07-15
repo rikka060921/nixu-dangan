@@ -28,6 +28,8 @@
 - [x] `pnpm test`
 - [x] `pnpm typecheck`
 - [x] `pnpm build`
+- [x] `pnpm package:offline`
+- [x] 离线 HTML 无外部资源，ZIP 包含使用说明与第三方许可声明。
 - [x] `pnpm simulate 2000 combat standard`
 - [x] `pnpm simulate 2000 balanced standard`
 - [x] `pnpm simulate 1000 balanced paradox`

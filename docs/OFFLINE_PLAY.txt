@@ -1,0 +1,16 @@
+《逆序档案》{{VERSION}} 离线版
+
+游玩方法
+1. 完整解压 ZIP。
+2. 双击“Reverse-Archive.html”。
+3. 使用最新版 Chrome、Edge 或 Firefox 打开即可游玩。
+
+说明
+- 不需要安装 Node.js，不需要联网，也不需要运行任何命令。
+- 存档保存在当前浏览器的本地存储中；清理浏览器站点数据可能会删除存档。
+- 不同浏览器之间不会自动同步存档。
+- 若浏览器拦截本地页面，请右键 HTML 文件并选择其他现代浏览器打开。
+- 第三方软件许可见 THIRD_PARTY_NOTICES.txt，HTML 内也保留了相同声明。
+
+项目主页
+https://github.com/rikka060921/nixu-dangan
