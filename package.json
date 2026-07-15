@@ -18,13 +18,6 @@
     "causality"
   ],
   "license": "UNLICENSED",
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "^11.7.0",
-      "onFail": "error"
-    }
-  },
   "type": "module",
   "dependencies": {
     "react": "^19.2.7",
