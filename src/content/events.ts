@@ -1,4 +1,11 @@
-import type { EventDefinition, EventId } from '../domain/types'
+import type { ClueId, EventDefinition, EventId } from '../domain/types'
+
+export const CLUES: Record<ClueId, { name: string; text: string }> = {
+  'archive-origin': { name: '档案馆才是起点', text: '仓库火灾只是删除命令留下的烟幕。' },
+  'zero-self': { name: '第零号时间线中的自己', text: '另一条历史里的你早已参与这场灾难。' },
+  'future-city': { name: '被救下的未来', text: '有人记得一座没有在零点燃烧的白塔城。' },
+  'key-shape': { name: '第零号钥匙齿痕', text: '地下那扇门确实为你留下了入口。' },
+}
 
 export const EVENTS: Record<EventId, EventDefinition> = {
   telegram: {
@@ -13,7 +20,7 @@ export const EVENTS: Record<EventId, EventDefinition> = {
         description: '将「逆序批注」加入牌组，但接触未来会产生悖论。',
         result: '+1 悖论',
         story: '无字电报证明：档案馆才是灾难起点。',
-        effect: { addCards: ['annotation'], paradox: 1 },
+        effect: { addCards: ['annotation'], paradox: 1, addClues: ['archive-origin'] },
       },
       {
         id: 'burn',
@@ -38,7 +45,7 @@ export const EVENTS: Record<EventId, EventDefinition> = {
         description: '承认另一条时间线的存在，并取得一枚时间锚。',
         result: '最大时间线 -3',
         story: '合影里多出的自己，来自第零号时间线。',
-        effect: { maxTimeline: -3, addCards: ['anchor'] },
+        effect: { maxTimeline: -3, addCards: ['anchor'], addClues: ['zero-self'] },
       },
       {
         id: 'cut',
@@ -113,7 +120,7 @@ export const EVENTS: Record<EventId, EventDefinition> = {
         description: '获得「红线追迹」；与不存在的人通信会产生轻微悖论。',
         result: '+1 悖论',
         story: '你把回信系上红线，线的另一端传来尚未出生的心跳。',
-        effect: { addCards: ['thread'], paradox: 1 },
+        effect: { addCards: ['thread'], paradox: 1, addClues: ['future-city'] },
       },
       {
         id: 'seal',
@@ -135,10 +142,10 @@ export const EVENTS: Record<EventId, EventDefinition> = {
         id: 'take',
         icon: '取',
         title: '提前取走钥匙',
-        description: '获得「提前停电」，并承担篡改保管记录的代价。',
-        result: '+2 悖论',
+        description: '把钥匙带入当前时间线，并承担篡改保管记录的代价。',
+        result: '获得遗物，+2 悖论',
         story: '你取走钥匙，柜中的标签立刻改成了你的笔迹。',
-        effect: { addCards: ['blackout'], paradox: 2 },
+        effect: { addRelic: 'key', paradox: 2, addClues: ['key-shape'] },
       },
       {
         id: 'copy',
@@ -147,9 +154,8 @@ export const EVENTS: Record<EventId, EventDefinition> = {
         description: '获得「逆序批注」，不直接触碰那条未来。',
         result: '加入牌组',
         story: '拓印纸记住了钥匙的形状，也记住了它尚未打开的门。',
-        effect: { addCards: ['annotation'] },
+        effect: { addCards: ['annotation'], addClues: ['key-shape'] },
       },
     ],
   },
 }
-

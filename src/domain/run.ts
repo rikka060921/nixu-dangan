@@ -13,6 +13,8 @@ import type {
 } from './types'
 import { sampleWeighted, seedHash, shuffleSeeded } from './random'
 
+export const MIN_DECK_SIZE = 3
+
 function cloneNode(id: string): MapNode {
   return { ...MAP_TEMPLATES[id] }
 }
@@ -39,11 +41,11 @@ export function buildRandomLayers(initialState: number): { layers: MapNode[][]; 
     const events = shuffleSeeded(config.events, elite.state)
     rngState = events.state
     layers.push(
-      [cloneNode(normal.items[0]), cloneNode(events.items[0])],
-      [cloneNode(normal.items[1]), cloneNode(config.rest[0])],
-      [cloneNode(normal.items[2]), cloneNode(config.shop)],
+      [cloneNode(normal.items[0])],
+      [cloneNode(normal.items[1]), cloneNode(events.items[0])],
+      [cloneNode(normal.items[2])],
       [cloneNode(elite.items[0]), cloneNode(events.items[1])],
-      [cloneNode(elite.items[1]), cloneNode(config.rest[1])],
+      [cloneNode(elite.items[1]), cloneNode(config.shop), cloneNode(config.rest[0])],
       [cloneNode(config.boss)],
     )
   }
@@ -68,7 +70,8 @@ export function createRun(seed: string, modeId: ChallengeId, meta: MetaState): R
     floor: 0,
     cleared: [],
     story: [`你在第十八次火灾前醒来。调查种子：${seed}。`],
-    currentTitle: '追查灾难的起点',
+    clues: [],
+    currentTitle: '找出被火灾删掉的名字',
     mode: modeId,
     seed,
     rngState: generated.rngState,

@@ -32,11 +32,11 @@ export const CHALLENGES: Record<ChallengeId, ChallengeDefinition> = {
   zero: {
     id: 'zero',
     name: '零时挑战',
-    timeline: 22,
-    paradoxLimit: 6,
-    targetMultiplier: 1.3,
+    timeline: 24,
+    paradoxLimit: 7,
+    targetMultiplier: 1.25,
     inkMultiplier: 2,
-    text: '案件真相要求 +30%，以一张伪造口供污染起始牌组。',
+    text: '案件真相要求 +25%，以一张伪造口供污染起始牌组。',
   },
 }
 
@@ -225,11 +225,11 @@ export const ENCOUNTERS: Record<EncounterId, EncounterDefinition> = {
   boss: {
     id: 'boss',
     name: '零时档案',
-    type: '固定历史 · Boss',
+    type: '循环外壳 · 最终 Boss',
     rank: 'boss',
     target: 30,
     incidents: ['rewrite', 'fire', 'purge', 'collapse', 'collapse'],
-    story: '档案管理员摘下面具。那张脸属于三天后的你。',
+    story: '零时档案是循环的外壳。档案管理员摘下面具：那张脸属于三天后的你，而外壳之内正是你写下的第零号历史。',
   },
 }
 
@@ -251,7 +251,7 @@ export const MAP_TEMPLATES: Record<string, MapNode> = {
   city: { type: 'battle', id: 'city', icon: '城', title: '燃烧的白塔城', sub: '普通案件', description: '全城都是案发现场' },
   double: { type: 'elite', id: 'double', icon: '复', title: '第二个调查员', sub: '精英案件', description: '只能留下一个调查者' },
   null: { type: 'elite', id: 'null', icon: '无', title: '零号见证人', sub: '精英案件', description: '不存在的第一份口供' },
-  boss: { type: 'boss', id: 'boss', icon: '零', title: '零时档案', sub: '固定历史', description: '灾难真正的起点' },
+  boss: { type: 'boss', id: 'boss', icon: '零', title: '零时档案', sub: '循环外壳', description: '击破外壳，封存第零号历史' },
   telegram: { type: 'event', id: 'telegram', icon: '函', title: '无字电报', sub: '异常事件', description: '一封来自明天的电报' },
   photo: { type: 'event', id: 'photo', icon: '像', title: '失真的合影', sub: '异常事件', description: '照片上多出一个你' },
   platform: { type: 'event', id: 'platform', icon: '轨', title: '不存在的站台', sub: '异常事件', description: '末班车驶向明天' },
@@ -271,19 +271,25 @@ export const MAP_TEMPLATES: Record<string, MapNode> = {
 
 export const ACT_NAMES = ['灰烬档案', '倒走之城', '第零号历史'] as const
 
+export const ACT_MISSIONS = [
+  { title: '找出被火灾删掉的名字', text: '从火灾现场追查那份把调查员从历史中删除的命令。' },
+  { title: '沿明日订单追到循环制造者', text: '封馆人只是执行者；同一份订单把删名变成了整座城市的循环。' },
+  { title: '打开核心，确认谁写下重来命令', text: '零时档案是外壳；第零号历史保存着循环的签名与动机。' },
+] as const
+
 export const CHAPTER_ENDINGS = [
   {
     eyebrow: 'ACT I CLOSED · ASHES REMEMBER',
     title: '火灾不是起点，而是一份删除指令',
-    narrative: '封馆人的值班表上没有你的名字，却记录着你每一次醒来的时间。仓库大火并非为了毁掉证据，而是为了让整座城市忘记一名本该值夜的调查员。',
-    reveal: '你从灰烬里找到一张车票：目的地写着“昨天”，发车时间是明天。',
+    narrative: '封馆人的值班表上没有你的名字，却记录着你每一次醒来的时间。仓库大火并非为了毁掉证据，而是为了让整座城市忘记一名本该值夜的调查员。封馆人承认，他只是替“三天后的委托人”执行删名命令。',
+    reveal: '灰烬里只剩一枚“昨日”印章，指向仍在倒走的城市与同一份明日订单。',
     next: '进入第二幕 · 倒走之城',
   },
   {
     eyebrow: 'ACT II CLOSED · THE CLOCK CONFESSES',
     title: '循环不是牢笼，而是你寄回过去的工具',
-    narrative: '失刻钟匠承认，倒走的城市只是更大装置的表盘。真正驱动循环的不是钟楼，而是档案馆地下那份从未建立、却被所有记录引用的“第零号历史”。',
-    reveal: '订单上的签名确实属于三天后的你。你曾要求钟匠确保今晚永远能够重来。',
+    narrative: '失刻钟匠承认，倒走的城市只是更大装置的表盘。封馆人收到的删名命令与钟匠收到的循环订单来自同一名委托人；真正驱动循环的，是档案馆地下那份从未建立、却被所有记录引用的“第零号历史”。',
+    reveal: '订单上的签名确实属于三天后的你。你不是为了困住自己才要求今晚重来，而是为了让白塔城保留一条没有燃烧的可能。',
     next: '进入第三幕 · 第零号历史',
   },
 ] as const

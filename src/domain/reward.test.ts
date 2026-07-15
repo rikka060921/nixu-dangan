@@ -9,6 +9,7 @@ const META: MetaState = {
   wins: 0,
   ink: 0,
   tutorialDone: true,
+  soundEnabled: true,
   lastMode: 'standard',
 }
 
@@ -34,4 +35,3 @@ describe('constrained card rewards', () => {
     expect(counts.get('普通') ?? 0).toBeGreaterThan(counts.get('稀有') ?? 0)
   })
 })
-

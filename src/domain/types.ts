@@ -72,6 +72,7 @@ export type EncounterId =
 export type ChallengeId = 'standard' | 'paradox' | 'zero'
 export type NodeType = 'battle' | 'elite' | 'boss' | 'event' | 'rest' | 'shop'
 export type EventId = 'telegram' | 'photo' | 'platform' | 'obituary' | 'unborn-letter' | 'zero-key'
+export type ClueId = 'archive-origin' | 'zero-self' | 'future-city' | 'key-shape'
 
 export interface CardDefinition {
   id: CardId
@@ -140,6 +141,7 @@ export interface EventEffect {
   echoes?: number
   addCards?: CardId[]
   addRelic?: RelicId
+  addClues?: ClueId[]
 }
 
 export interface EventChoiceDefinition {
@@ -175,6 +177,7 @@ export interface RunState {
   floor: number
   cleared: ClearedNode[]
   story: string[]
+  clues: ClueId[]
   currentNode?: string
   currentTitle: string
   mode: ChallengeId
@@ -190,6 +193,7 @@ export interface CardInstance extends DeckCard {
 export interface PlacedCard extends CardInstance {
   era: Era
   paid: number
+  discount?: 'watch' | 'needle'
 }
 
 export interface BattleState {
@@ -205,6 +209,7 @@ export interface BattleState {
   hand: CardInstance[]
   energy: number
   placed: PlacedCard[]
+  watchAvailable: boolean
   selectedUid?: string
   nextCardUid: number
   log: string[]
@@ -223,6 +228,7 @@ export interface MetaState {
   wins: number
   ink: number
   tutorialDone: boolean
+  soundEnabled: boolean
   lastMode: ChallengeId
 }
 

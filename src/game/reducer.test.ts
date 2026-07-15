@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import type { BattleState, GameState, MetaState } from '../domain/types'
+import { ACT_MISSIONS } from '../content/gameContent'
+import type { BattleState, GameState, MetaState, RunState } from '../domain/types'
 import { createRun } from '../domain/run'
 import { gameReducer } from './reducer'
 
@@ -9,6 +10,7 @@ const META: MetaState = {
   wins: 0,
   ink: 0,
   tutorialDone: false,
+  soundEnabled: true,
   lastMode: 'standard',
 }
 
@@ -39,6 +41,7 @@ function winningBattle(): BattleState {
     hand,
     energy: 2,
     placed: [{ ...hand[0], era: 0, paid: 1 }],
+    watchAvailable: true,
     nextCardUid: 1,
     log: [],
   }
@@ -50,8 +53,10 @@ describe('game reducer loop', () => {
     expect(started.screen.name).toBe('map')
     expect(started.run?.seed).toBe('242713')
 
-    const eventNode = started.run!.layers[0].find((node) => node.type === 'event')!
-    const event = gameReducer(started, { type: 'select-node', nodeId: eventNode.id })
+    const eventFloor = started.run!.layers.findIndex((layer) => layer.some((node) => node.type === 'event'))
+    const eventNode = started.run!.layers[eventFloor].find((node) => node.type === 'event')!
+    const atEvent = { ...started, run: { ...started.run!, floor: eventFloor } }
+    const event = gameReducer(atEvent, { type: 'select-node', nodeId: eventNode.id })
     expect(event.screen.name).toBe('event')
 
     const resolved = gameReducer(event, {
@@ -59,8 +64,8 @@ describe('game reducer loop', () => {
       choiceId: eventNode.id === 'telegram' ? 'read' : 'keep',
     })
     expect(resolved.screen.name).toBe('map')
-    expect(resolved.run?.floor).toBe(1)
-    expect(resolved.run?.cleared[0].id).toBe(eventNode.id)
+    expect(resolved.run?.floor).toBe(eventFloor + 1)
+    expect(resolved.run?.cleared[0]).toEqual({ floor: eventFloor, id: eventNode.id })
   })
 
   it('turns a won battle into a deterministic reward and advances after choosing a card', () => {
@@ -111,6 +116,7 @@ describe('game reducer loop', () => {
 
     const continued = gameReducer(rewarded, { type: 'continue-chapter' })
     expect(continued.screen.name).toBe('map')
+    expect(continued.run?.currentTitle).toBe(ACT_MISSIONS[1].title)
     expect(continued.run?.layers[continued.run.floor][0].id).toMatch(/station|hospital|press/)
   })
 
@@ -163,6 +169,98 @@ describe('game reducer loop', () => {
     if (upgraded.screen.name !== 'shop') throw new Error('shop expected')
     expect(upgraded.screen.shop.bought).toContain('upgrade')
     expect(gameReducer(upgraded, { type: 'upgrade-shop-card', index: 0 })).toBe(upgraded)
+  })
+
+  it('keeps a minimum playable deck and guards shop edit actions by their active mode', () => {
+    const shortRun = { ...createRun('minimum-deck', 'standard', META), deck: createRun('minimum-deck', 'standard', META).deck.slice(0, 3), currentNode: 'rest' }
+    const restState: GameState = { ...titleState(), run: shortRun, screen: { name: 'rest', removing: true, upgrading: false } }
+    expect(gameReducer(restState, { type: 'remove-rest-card', index: 0 })).toBe(restState)
+
+    const shopState: GameState = {
+      ...titleState(),
+      run: { ...createRun('shop-guard', 'standard', META), echoes: 40 },
+      screen: { name: 'shop', shop: { cards: ['thread'], relic: 'ash', bought: [], removing: false, upgrading: false } },
+    }
+    expect(gameReducer(shopState, { type: 'remove-shop-card', index: 0 })).toBe(shopState)
+    expect(gameReducer(shopState, { type: 'upgrade-shop-card', index: 0 })).toBe(shopState)
+  })
+
+  it('rejects stale route and forged reward actions', () => {
+    const run = createRun('action-guard', 'standard', META)
+    const battleState: GameState = { ...titleState(), run, battle: winningBattle(), screen: { name: 'battle' } }
+    const node = run.layers[0][0]
+    expect(gameReducer(battleState, { type: 'select-node', nodeId: node.id })).toBe(battleState)
+
+    const rewardState: GameState = { ...titleState(), run, screen: { name: 'reward', options: ['thread'], gain: 12 } }
+    expect(gameReducer(rewardState, { type: 'choose-reward', cardId: 'vow' })).toBe(rewardState)
+  })
+
+  it('keeps current global preferences and progression when resuming an older session snapshot', () => {
+    const savedRun = createRun('resume-meta', 'standard', META)
+    const savedMeta = { ...META, tutorialDone: false, soundEnabled: true, runs: 1, wins: 0, ink: 2 }
+    const currentMeta = { ...META, tutorialDone: true, soundEnabled: false, runs: 4, wins: 2, ink: 19 }
+    const state: GameState = {
+      ...titleState(),
+      meta: currentMeta,
+      resumable: {
+        ...titleState(),
+        screen: { name: 'map' },
+        meta: savedMeta,
+        run: savedRun,
+      },
+    }
+
+    const resumed = gameReducer(state, { type: 'resume-run' })
+    expect(resumed.meta).toEqual(currentMeta)
+    expect(resumed.run).toBe(savedRun)
+    expect(resumed.resumable).toBeNull()
+  })
+
+  it('ignores battle actions when a stale battle object survives on another screen', () => {
+    const run = createRun('stale-battle', 'standard', META)
+    const state: GameState = { ...titleState(), run, screen: { name: 'map' }, battle: winningBattle() }
+    expect(gameReducer(state, { type: 'select-card', uid: 'ledger-win' })).toBe(state)
+    expect(gameReducer(state, { type: 'place-card', era: 0 })).toBe(state)
+    expect(gameReducer(state, { type: 'remove-placed', uid: 'ledger-win' })).toBe(state)
+    expect(gameReducer(state, { type: 'resolve-timeline' })).toBe(state)
+  })
+
+  it('ends the run immediately when an event reaches a terminal resource limit', () => {
+    const run = { ...createRun('event-terminal', 'standard', META), paradox: 7, currentNode: 'telegram', currentTitle: '无字电报' }
+    const state: GameState = { ...titleState(), run, screen: { name: 'event', eventId: 'telegram' } }
+    const ended = gameReducer(state, { type: 'choose-event', choiceId: 'read' })
+    expect(ended.screen.name).toBe('ending')
+    if (ended.screen.name !== 'ending') throw new Error('ending expected')
+    expect(ended.screen.won).toBe(false)
+    expect(ended.meta.runs).toBe(1)
+  })
+
+  it('records confirmed event clues for the final archive explanation', () => {
+    const run = { ...createRun('event-clue', 'standard', META), currentNode: 'telegram', currentTitle: '无字电报' }
+    const state: GameState = { ...titleState(), run, screen: { name: 'event', eventId: 'telegram' } }
+    const resolved = gameReducer(state, { type: 'choose-event', choiceId: 'read' })
+    expect(resolved.screen.name).toBe('map')
+    expect(resolved.run?.clues).toContain('archive-origin')
+  })
+
+  it('closes the final boss by sealing zero history', () => {
+    const run = { ...createRun('final-archive', 'standard', META), floor: 17, currentNode: 'boss', currentTitle: '零时档案', clues: ['archive-origin', 'zero-self', 'future-city'] as RunState['clues'] }
+    const battle = { ...winningBattle(), encounterId: 'boss' as const }
+    const ended = gameReducer({ ...titleState(), run, battle, screen: { name: 'battle' } }, { type: 'resolve-timeline' })
+    expect(ended.screen.name).toBe('ending')
+    if (ended.screen.name !== 'ending') throw new Error('ending expected')
+    expect(ended.screen.won).toBe(true)
+    expect(ended.run?.story.at(-1)).toContain('第零号历史')
+  })
+
+  it('does not buy a duplicate relic from a recovered shop', () => {
+    const run = { ...createRun('duplicate-relic', 'standard', META), echoes: 40, relics: ['ash'] as RunState['relics'] }
+    const state: GameState = {
+      ...titleState(),
+      run,
+      screen: { name: 'shop', shop: { cards: [], relic: 'ash', bought: [], removing: false, upgrading: false } },
+    }
+    expect(gameReducer(state, { type: 'buy-shop-relic' })).toBe(state)
   })
 
   it('awards meta progression and clears the resumable run on a terminal loss', () => {

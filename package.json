@@ -1,6 +1,6 @@
 {
   "name": "reverse-archive",
-  "version": "0.1.0",
+  "version": "0.1.0-rc.1",
   "description": "《逆序档案》因果时间轴卡牌肉鸽",
   "private": true,
   "scripts": {
@@ -22,7 +22,7 @@
     "packageManager": {
       "name": "pnpm",
       "version": "^11.7.0",
-      "onFail": "download"
+      "onFail": "error"
     }
   },
   "type": "module",

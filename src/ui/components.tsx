@@ -1,6 +1,7 @@
 import type { Dispatch, ReactNode } from 'react'
 
 import { CARDS, KIND_NAMES } from '../content/cards'
+import { CLUES } from '../content/events'
 import { ACT_NAMES, CHALLENGES, RELICS } from '../content/gameContent'
 import { effectiveCost } from '../domain/battle'
 import type { BattleState, CardInstance, GameState, RunState } from '../domain/types'
@@ -39,6 +40,7 @@ export function Header({
       </div>
       <nav className="top-actions" aria-label="全局操作">
         <span className="top-location">{title}</span>
+        <button className="text-button" type="button" aria-pressed={state.meta.soundEnabled} onClick={() => dispatch({ type: 'toggle-sound' })}>声音 {state.meta.soundEnabled ? '开' : '关'}</button>
         <button className="text-button" type="button" onClick={onOpenManual}>游戏说明</button>
         {state.screen.name !== 'title' && state.screen.name !== 'ending' ? (
           <button className="text-button" type="button" onClick={() => dispatch({ type: 'return-title' })}>返回标题</button>
@@ -142,6 +144,15 @@ export function SideArchive({ run }: { run: RunState }) {
             const card = CARDS[deckCard.cardId]
             return <span className={`mini-card card-${card.kind} ${deckCard.upgraded ? 'is-upgraded' : ''}`} key={`${deckCard.cardId}-${index}`}>{card.kind} · {card.name}{deckCard.upgraded ? ' +' : ''}</span>
           })}
+        </div>
+      </section>
+      <section>
+        <p className="eyebrow">CONFIRMED CLUES</p>
+        <h3>已确认事实 · {run.clues.length}</h3>
+        <div className="compact-list">
+          {run.clues.length ? run.clues.map((id) => (
+            <p className="clue-line" key={id}><b>{CLUES[id].name}</b><span>{CLUES[id].text}</span></p>
+          )) : <p className="clue-line"><b>尚无关键事实</b><span>异常事件中的取舍会决定你最终能证明多少。</span></p>}
         </div>
       </section>
       <section>

@@ -72,9 +72,18 @@ export function startBattle(runInput: RunState, encounterId: EncounterId): { run
 
   const deck = shuffleSeeded(run.deck, run.rngState)
   run.rngState = deck.state
+  const baseTarget = Math.ceil(encounter.target * CHALLENGES[run.mode].targetMultiplier)
+  const actStart = Math.floor(run.floor / 6) * 6
+  const clearedCombat = run.cleared.filter((entry) => {
+    if (entry.floor < actStart || entry.floor >= actStart + 5) return false
+    const node = run.layers[entry.floor]?.find((candidate) => candidate.id === entry.id)
+    return node?.type === 'battle' || node?.type === 'elite'
+  }).length
+  const unresolvedCases = encounter.rank === 'boss' ? Math.max(0, 3 - clearedCombat) : 0
+  const casePressure = unresolvedCases * 4
   const battle: BattleState = {
     encounterId,
-    encounterTarget: Math.ceil(encounter.target * CHALLENGES[run.mode].targetMultiplier),
+    encounterTarget: baseTarget + casePressure,
     incidentOrder,
     round: 0,
     truth: 0,
@@ -85,8 +94,9 @@ export function startBattle(runInput: RunState, encounterId: EncounterId): { run
     hand: [],
     energy: 3,
     placed: [],
+    watchAvailable: true,
     nextCardUid: 0,
-    log: [encounter.story],
+    log: [encounter.story, ...(casePressure ? [`你跳过了 ${unresolvedCases} 份关键案件：首领真相目标 +${casePressure}。`] : [])],
   }
   return drawCards(run, battle, 5)
 }
@@ -97,9 +107,14 @@ export function currentIncident(battle: BattleState) {
 }
 
 export function effectiveCost(run: RunState, battle: BattleState, card: CardInstance): number {
-  if (run.relics.includes('watch') && battle.placed.length === 0) return 0
-  if (run.relics.includes('needle') && CARDS[card.cardId].kind === '改' && !battle.placed.some((placed) => CARDS[placed.cardId].kind === '改')) return 0
+  if (discountSource(run, battle, card)) return 0
   return CARDS[card.cardId].cost
+}
+
+function discountSource(run: RunState, battle: BattleState, card: CardInstance): PlacedCard['discount'] {
+  if (run.relics.includes('watch') && battle.watchAvailable) return 'watch'
+  if (run.relics.includes('needle') && CARDS[card.cardId].kind === '改' && !battle.placed.some((placed) => CARDS[placed.cardId].kind === '改')) return 'needle'
+  return undefined
 }
 
 export function selectCard(battle: BattleState, uid: string): BattleState {
@@ -112,10 +127,12 @@ export function placeSelectedCard(run: RunState, battle: BattleState, era: Era):
   if (!selected || battle.placed.some((card) => card.uid === selected.uid)) return battle
   const cost = effectiveCost(run, battle, selected)
   if (cost > battle.energy) return battle
-  const placed: PlacedCard = { ...selected, era, paid: cost }
+  const discount = discountSource(run, battle, selected)
+  const placed: PlacedCard = { ...selected, era, paid: cost, discount }
   return {
     ...battle,
     energy: battle.energy - cost,
+    watchAvailable: discount === 'watch' ? false : battle.watchAvailable,
     placed: [...battle.placed, placed],
     selectedUid: undefined,
   }
@@ -124,10 +141,24 @@ export function placeSelectedCard(run: RunState, battle: BattleState, era: Era):
 export function removePlacedCard(battle: BattleState, uid: string): BattleState {
   const card = battle.placed.find((entry) => entry.uid === uid)
   if (!card) return battle
+  const placed = battle.placed.filter((entry) => entry.uid !== uid)
+  let energy = battle.energy + card.paid
+  let watchAvailable = battle.watchAvailable
+  if (card.discount === 'watch') {
+    const next = placed[0]
+    if (!next) {
+      watchAvailable = true
+    } else {
+      energy += next.paid
+      placed[0] = { ...next, paid: 0, discount: 'watch' }
+      watchAvailable = false
+    }
+  }
   return {
     ...battle,
-    energy: battle.energy + card.paid,
-    placed: battle.placed.filter((entry) => entry.uid !== uid),
+    energy,
+    watchAvailable,
+    placed,
   }
 }
 
@@ -294,14 +325,15 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
     if (placed.cardId === 'seal' && before) {
       flags.protectedNow = true
       if (upgraded) battle.truth += 1
-      messages.push('仓库被封锁。')
+      messages.push(upgraded ? '仓库被封锁：真相 +1。' : '仓库被封锁。')
     }
     if (placed.cardId === 'rescue') {
       if (placed.era === 1) {
-        battle.truth += upgraded ? 2 : 1
+        const gain = upgraded ? 2 : 1
+        battle.truth += gain
         battle.witnessAlive = true
         flags.protectedNow = true
-        messages.push('证人被及时疏散，真相 +1。')
+        messages.push(`证人被及时疏散，真相 +${gain}。`)
       } else messages.push('疏散时机错误。')
     }
     if (placed.cardId === 'ledger') {
@@ -310,10 +342,11 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
       messages.push(`账本残页：真相 +${gain}。`)
     }
     if (placed.cardId === 'clarify') {
-      battle.credibility += upgraded ? 2 : 1
+      const credibilityGain = upgraded ? 2 : 1
+      battle.credibility += credibilityGain
       if (before) flags.clarified = true
       if (before && upgraded) battle.truth += 1
-      messages.push('可信度 +1。')
+      messages.push(`澄清谣言：可信度 +${credibilityGain}${before && upgraded ? '，真相 +1' : ''}。`)
     }
     if (placed.cardId === 'memory') {
       const gain = placed.era === 0 ? 4 : 3
@@ -329,16 +362,17 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
     }
     if (placed.cardId === 'alibi') {
       battle.credibility += 2
-      battle.truth += upgraded ? 2 : 1
+      const gain = upgraded ? 2 : 1
+      battle.truth += gain
       run.paradox += 2
-      messages.push('伪造口供：真相 +1，悖论 +2。')
+      messages.push(`伪造口供：真相 +${gain}，悖论 +2。`)
     }
     if (placed.cardId === 'blackout') {
       if (placed.era === 0) {
         flags.cancelled = true
         run.paradox += 2
         if (upgraded) run.timeline = Math.min(run.maxTimeline, run.timeline + 1)
-        messages.push('固定事件被提前停电取消。')
+        messages.push(upgraded ? '固定事件被提前停电取消：时间线 +1，悖论 +2。' : '固定事件被提前停电取消：悖论 +2。')
       } else messages.push('停电来得太晚。')
     }
     if (placed.cardId === 'annotation') {
@@ -369,14 +403,16 @@ export function resolveTimeline(runInput: RunState, battleInput: BattleState): B
       messages.push(`以身作证：真相 +${gain}。`)
     }
     if (placed.cardId === 'thread') {
-      battle.truth += upgraded ? 2 : 1
+      const gain = upgraded ? 2 : 1
+      battle.truth += gain
       if (placed.era === 1) battle.credibility += 1
-      messages.push('红线追迹：真相 +1。')
+      messages.push(`红线追迹：真相 +${gain}${placed.era === 1 ? '，可信度 +1' : ''}。`)
     }
     if (placed.cardId === 'delay') {
       flags.protectedNow = true
-      if (placed.era === 2) battle.truth += upgraded ? 2 : 1
-      messages.push('固定事件被延迟。')
+      const gain = placed.era === 2 ? (upgraded ? 2 : 1) : 0
+      if (gain) battle.truth += gain
+      messages.push(`固定事件被延迟${gain ? `：真相 +${gain}` : ''}。`)
     }
     if (placed.cardId === 'doorplate') {
       flags.protectedNow = true

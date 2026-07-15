@@ -16,16 +16,17 @@ describe('campaign route generation', () => {
     expect(first[17]).toEqual([MAP_TEMPLATES.boss])
   })
 
-  it('offers a combat and a distinct utility choice before each boss', () => {
+  it('requires two normal cases while preserving event, shop, rest and elite choices', () => {
     const layers = buildRandomLayers(seedHash('route-constraints')).layers
 
     for (const act of [0, 1, 2]) {
-      const actLayers = layers.slice(act * 6, act * 6 + 5)
-      for (const layer of actLayers) {
-        expect(layer).toHaveLength(2)
-        expect(['battle', 'elite']).toContain(layer[0].type)
-        expect(['event', 'rest', 'shop']).toContain(layer[1].type)
-      }
+      const actLayers = layers.slice(act * 6, act * 6 + 6)
+      expect(actLayers[0].map((node) => node.type)).toEqual(['battle'])
+      expect(actLayers[1].map((node) => node.type)).toEqual(['battle', 'event'])
+      expect(actLayers[2].map((node) => node.type)).toEqual(['battle'])
+      expect(actLayers[3].map((node) => node.type)).toEqual(['elite', 'event'])
+      expect(actLayers[4].map((node) => node.type)).toEqual(['elite', 'shop', 'rest'])
+      expect(actLayers[5].map((node) => node.type)).toEqual(['boss'])
     }
   })
 })

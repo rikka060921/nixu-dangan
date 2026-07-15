@@ -1,6 +1,6 @@
 import { CARDS } from '../content/cards'
 import { EVENTS } from '../content/events'
-import { CHALLENGES, ENCOUNTERS, RELICS } from '../content/gameContent'
+import { ACT_MISSIONS, CHALLENGES, ENCOUNTERS, RELICS } from '../content/gameContent'
 import {
   placeSelectedCard,
   removePlacedCard,
@@ -13,6 +13,7 @@ import {
   calculateInkGain,
   createRun,
   createShop,
+  MIN_DECK_SIZE,
   pickEliteRelic,
   pickRewardOptions,
 } from '../domain/run'
@@ -51,6 +52,8 @@ export type GameAction =
   | { type: 'upgrade-shop-card'; index: number }
   | { type: 'leave-shop' }
   | { type: 'clear-notice' }
+  | { type: 'complete-tutorial' }
+  | { type: 'toggle-sound' }
 
 function randomSeed(): string {
   return String(Math.floor(100000 + Math.random() * 900000))
@@ -81,7 +84,11 @@ function advanceToMap(state: GameState, run: RunState): GameState {
 }
 
 function finishReward(state: GameState, run: RunState): GameState {
-  const completedAct = run.floor === 5 ? 0 : run.floor === 11 ? 1 : undefined
+  const completedAct = run.floor === 5 && run.currentNode === 'curator'
+    ? 0
+    : run.floor === 11 && run.currentNode === 'clockmaker'
+      ? 1
+      : undefined
   if (completedAct === undefined) return advanceToMap(state, run)
   const recalibrated: RunState = {
     ...run,
@@ -105,7 +112,7 @@ function finishRun(state: GameState, run: RunState, won: boolean, reason: string
     wins: state.meta.wins + (won ? 1 : 0),
     ink: state.meta.ink + inkGain,
   }
-  const story = won ? [...run.story, '零时档案被改写，但第零号档案仍未开启。'] : run.story
+  const story = won ? [...run.story, '零时档案的循环外壳破裂，第零号历史被正式封存。'] : run.story
   return {
     ...state,
     run: { ...run, story },
@@ -141,7 +148,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
   }
   if (action.type === 'resume-run' && state.resumable) {
-    return { ...state.resumable, meta: { ...state.meta, ...state.resumable.meta }, resumable: null }
+    return { ...state.resumable, meta: { ...state.resumable.meta, ...state.meta }, resumable: null }
   }
   if (action.type === 'return-title') {
     const resumable = state.run && state.screen.name !== 'ending' ? { ...state, resumable: null } : state.resumable
@@ -151,9 +158,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     return { ...state, screen: { name: 'title' }, run: null, battle: null, resumable: null, notice: undefined }
   }
   if (action.type === 'clear-notice') return { ...state, notice: undefined }
+  if (action.type === 'complete-tutorial') {
+    return { ...state, meta: { ...state.meta, tutorialDone: true } }
+  }
+  if (action.type === 'toggle-sound') {
+    return { ...state, meta: { ...state.meta, soundEnabled: !state.meta.soundEnabled } }
+  }
   if (!state.run) return state
 
   if (action.type === 'select-node') {
+    if (state.screen.name !== 'map') return state
     const run = withCurrentNode(state.run, action.nodeId)
     if (!run) return state
     const node = run.layers[run.floor].find((candidate) => candidate.id === action.nodeId)!
@@ -170,16 +184,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     return state
   }
 
-  if (action.type === 'select-card' && state.battle) {
+  if (action.type === 'select-card' && state.screen.name === 'battle' && state.battle) {
     return { ...state, battle: selectCard(state.battle, action.uid) }
   }
-  if (action.type === 'place-card' && state.battle) {
+  if (action.type === 'place-card' && state.screen.name === 'battle' && state.battle) {
     return { ...state, battle: placeSelectedCard(state.run, state.battle, action.era) }
   }
-  if (action.type === 'remove-placed' && state.battle) {
+  if (action.type === 'remove-placed' && state.screen.name === 'battle' && state.battle) {
     return { ...state, battle: removePlacedCard(state.battle, action.uid) }
   }
-  if (action.type === 'resolve-timeline' && state.battle && state.battle.placed.length) {
+  if (action.type === 'resolve-timeline' && state.screen.name === 'battle' && state.battle && state.battle.placed.length) {
     const result = resolveTimeline(state.run, state.battle)
     if (result.outcome === 'run-lost') return finishRun(state, result.run, false, result.reason ?? '这条历史无法成立。')
     if (result.outcome === 'run-won') return finishRun(state, result.run, true, '你阻止了零点火灾。')
@@ -213,6 +227,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
 
   if (action.type === 'choose-reward' && state.screen.name === 'reward') {
+    if (!state.screen.options.includes(action.cardId)) return state
     return finishReward(state, { ...state.run, deck: [...state.run.deck, { cardId: action.cardId, upgraded: false }] })
   }
   if (action.type === 'skip-reward' && state.screen.name === 'reward') {
@@ -222,7 +237,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     })
   }
   if (action.type === 'continue-chapter' && state.screen.name === 'chapter') {
-    return { ...state, screen: { name: 'map' } }
+    const nextAct = state.screen.act + 1
+    return { ...state, run: { ...state.run, currentTitle: ACT_MISSIONS[nextAct].title }, screen: { name: 'map' } }
   }
   if (action.type === 'choose-event' && state.screen.name === 'event') {
     const event = EVENTS[state.screen.eventId]
@@ -240,9 +256,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       relics: effect.addRelic && !state.run.relics.includes(effect.addRelic)
         ? [...state.run.relics, effect.addRelic]
         : [...state.run.relics],
+      clues: [...new Set([...state.run.clues, ...(effect.addClues ?? [])])],
       story: [...state.run.story, choice.story],
     }
     run = { ...run, timeline: Math.min(run.timeline, run.maxTimeline) }
+    if (run.timeline <= 0 || run.paradox >= run.paradoxLimit) {
+      return finishRun(
+        state,
+        run,
+        false,
+        run.paradox >= run.paradoxLimit
+          ? '异常记录使悖论达到上限，整条时间线从未存在过。'
+          : '异常记录切断了最后一段时间线。',
+      )
+    }
     return advanceToMap(state, run)
   }
   if (action.type === 'choose-rest' && state.screen.name === 'rest') {
@@ -262,7 +289,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     return { ...state, screen: { name: 'rest', removing: false, upgrading: false } }
   }
   if (action.type === 'remove-rest-card' && state.screen.name === 'rest' && state.screen.removing) {
-    if (!state.run.deck[action.index]) return state
+    if (!state.run.deck[action.index] || state.run.deck.length <= MIN_DECK_SIZE) return state
     const deck = [...state.run.deck]
     const [removed] = deck.splice(action.index, 1)
     return advanceToMap(state, {
@@ -293,7 +320,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return updateShop(state, { ...state.run, echoes: state.run.echoes - 12, deck: [...state.run.deck, { cardId, upgraded: false }] }, shop)
     }
     if (action.type === 'buy-shop-relic') {
-      if (shop.bought.includes('relic') || state.run.echoes < 25) return state
+      if (shop.bought.includes('relic') || state.run.echoes < 25 || state.run.relics.includes(shop.relic)) return state
       shop.bought.push('relic')
       return updateShop(state, { ...state.run, echoes: state.run.echoes - 25, relics: [...state.run.relics, shop.relic] }, shop)
     }
@@ -307,13 +334,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       )
     }
     if (action.type === 'open-shop-remove') {
-      if (shop.bought.includes('remove') || state.run.echoes < 15) return state
+      if (shop.bought.includes('remove') || state.run.echoes < 15 || state.run.deck.length <= MIN_DECK_SIZE) return state
       return updateShop(state, state.run, { ...shop, removing: true, upgrading: false })
     }
     if (action.type === 'cancel-shop-remove') return updateShop(state, state.run, { ...shop, removing: false })
     if (action.type === 'remove-shop-card') {
       const deckCard = state.run.deck[action.index]
-      if (!deckCard || shop.bought.includes('remove') || state.run.echoes < 15) return state
+      if (!shop.removing || !deckCard || state.run.deck.length <= MIN_DECK_SIZE || shop.bought.includes('remove') || state.run.echoes < 15) return state
       const deck = [...state.run.deck]
       deck.splice(action.index, 1)
       shop.bought.push('remove')
@@ -324,7 +351,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       )
     }
     if (action.type === 'open-shop-upgrade') {
-      if (shop.bought.includes('upgrade') || state.run.echoes < 18) return state
+      if (shop.bought.includes('upgrade') || state.run.echoes < 18 || !state.run.deck.some((card) => !card.upgraded)) return state
       return updateShop(state, state.run, { ...shop, removing: false, upgrading: true })
     }
     if (action.type === 'cancel-shop-upgrade') {
@@ -332,7 +359,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     if (action.type === 'upgrade-shop-card') {
       const card = state.run.deck[action.index]
-      if (!card || card.upgraded || shop.bought.includes('upgrade') || state.run.echoes < 18) return state
+      if (!shop.upgrading || !card || card.upgraded || shop.bought.includes('upgrade') || state.run.echoes < 18) return state
       const deck = [...state.run.deck]
       deck[action.index] = { ...card, upgraded: true }
       shop.bought.push('upgrade')

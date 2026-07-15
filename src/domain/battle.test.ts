@@ -6,6 +6,7 @@ import {
   placeSelectedCard,
   removePlacedCard,
   resolveTimeline,
+  selectCard,
   startBattle,
 } from './battle'
 import type { BattleState, CardId, Era, MetaState, PlacedCard, RunState } from './types'
@@ -15,6 +16,7 @@ const META: MetaState = {
   wins: 0,
   ink: 0,
   tutorialDone: false,
+  soundEnabled: true,
   lastMode: 'standard',
 }
 
@@ -38,6 +40,7 @@ function makeBattle(cardIds: CardId[], incident: BattleState['incidentOrder'][nu
     hand,
     energy: 3,
     placed,
+    watchAvailable: true,
     nextCardUid: hand.length,
     log: [],
   }
@@ -80,6 +83,44 @@ describe('timeline placement', () => {
     const removed = removePlacedCard(placed, card.uid)
     expect(removed.energy).toBe(3)
     expect(removed.placed).toHaveLength(0)
+    expect(removed.watchAvailable).toBe(true)
+  })
+
+  it('consumes the burned watch only once per case, not once per round', () => {
+    const run = { ...makeRun(), relics: ['watch'] as RunState['relics'] }
+    const source = { ...makeBattle(['ledger'], 'theft', [0]), placed: [], selectedUid: 'ledger-0' }
+    const planned = placeSelectedCard(run, source, 0)
+    expect(planned.placed[0].paid).toBe(0)
+    expect(planned.watchAvailable).toBe(false)
+
+    const next = resolveTimeline(run, planned)
+    expect(next.outcome).toBe('continue')
+    expect(next.battle.watchAvailable).toBe(false)
+    expect(effectiveCost(next.run, next.battle, next.battle.hand[0])).toBe(1)
+  })
+
+  it('consumes the burned watch before the calibration needle when both discounts match', () => {
+    const run = { ...makeRun(), relics: ['watch', 'needle'] as RunState['relics'] }
+    const source = { ...makeBattle(['memory', 'ledger'], 'theft', [0]), placed: [], selectedUid: 'memory-0' }
+    const first = placeSelectedCard(run, source, 0)
+
+    expect(first.placed[0]).toMatchObject({ cardId: 'memory', paid: 0, discount: 'watch' })
+    expect(first.watchAvailable).toBe(false)
+    expect(effectiveCost(run, first, first.hand[1])).toBe(1)
+  })
+
+  it('moves the burned-watch discount to the first remaining plan after an undo', () => {
+    const run = { ...makeRun(), relics: ['watch', 'needle'] as RunState['relics'] }
+    const source = { ...makeBattle(['ledger', 'memory', 'seal'], 'theft', [0]), placed: [], selectedUid: 'ledger-0' }
+    const first = placeSelectedCard(run, source, 0)
+    const second = placeSelectedCard(run, selectCard(first, 'memory-1'), 1)
+    const undone = removePlacedCard(second, 'ledger-0')
+
+    expect(undone.placed).toEqual([
+      expect.objectContaining({ cardId: 'memory', paid: 0, discount: 'watch' }),
+    ])
+    expect(undone.watchAvailable).toBe(false)
+    expect(effectiveCost(run, undone, undone.hand[2])).toBe(1)
   })
 
   it('rejects a card that costs more than the remaining energy', () => {
@@ -193,6 +234,18 @@ describe('causal resolution', () => {
     const started = startBattle(run, 'fire')
     expect(started.run.paradox).toBe(2)
     expect(started.battle.credibility).toBe(1)
+  })
+
+  it('raises a chapter boss target when too many key cases were skipped', () => {
+    const base = makeRun('boss-pressure')
+    const run: RunState = {
+      ...base,
+      floor: 5,
+      cleared: [{ floor: 0, id: base.layers[0][0].id }],
+    }
+    const started = startBattle(run, 'curator')
+    expect(started.battle.encounterTarget).toBe(26)
+    expect(started.battle.log.join('')).toContain('目标 +8')
   })
 
   it('reduces fixed-event damage with the cracked lens', () => {

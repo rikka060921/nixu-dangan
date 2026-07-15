@@ -1,8 +1,13 @@
 import { simulateRun } from '../src/simulation/heuristic'
+import type { SimulationPolicy } from '../src/simulation/heuristic'
+import type { ChallengeId } from '../src/domain/types'
 
 const requested = Number(process.argv[2] ?? 1000)
 const runCount = Number.isFinite(requested) ? Math.max(1, Math.min(100_000, Math.floor(requested))) : 1000
-const results = Array.from({ length: runCount }, (_, index) => simulateRun(`balance-${index}`))
+const policy: SimulationPolicy = process.argv[3] === 'balanced' ? 'balanced' : 'combat'
+const requestedMode = process.argv[4]
+const mode: ChallengeId = requestedMode === 'paradox' || requestedMode === 'zero' ? requestedMode : 'standard'
+const results = Array.from({ length: runCount }, (_, index) => simulateRun(`balance-${index}`, 500, policy, mode))
 const wins = results.filter((result) => result.won)
 const floorDistribution = Object.fromEntries(
   [...new Set(results.map((result) => result.floor))]
@@ -20,6 +25,8 @@ console.log(
   JSON.stringify(
     {
       runs: results.length,
+      policy,
+      mode,
       wins: wins.length,
       winRate: wins.length / results.length,
       actReach: {
