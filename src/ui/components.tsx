@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import type { Dispatch, ReactNode } from 'react'
 
 import { CARDS, KIND_NAMES } from '../content/cards'
@@ -6,6 +7,7 @@ import { ACT_NAMES, CHALLENGES, RELICS } from '../content/gameContent'
 import { effectiveCost } from '../domain/battle'
 import type { BattleState, CardInstance, GameState, RunState } from '../domain/types'
 import type { GameAction } from '../game/reducer'
+import { MAX_SOUND_VOLUME, MIN_SOUND_VOLUME } from '../game/audioSettings'
 
 export type GameDispatch = Dispatch<GameAction>
 
@@ -41,12 +43,75 @@ export function Header({
       <nav className="top-actions" aria-label="全局操作">
         <span className="top-location">{title}</span>
         <button className="text-button" type="button" aria-pressed={state.meta.soundEnabled} onClick={() => dispatch({ type: 'toggle-sound' })}>声音 {state.meta.soundEnabled ? '开' : '关'}</button>
+        <VolumeControl volume={state.meta.soundVolume} dispatch={dispatch} />
         <button className="text-button" type="button" onClick={onOpenManual}>游戏说明</button>
         {state.screen.name !== 'title' && state.screen.name !== 'ending' ? (
           <button className="text-button" type="button" onClick={() => dispatch({ type: 'return-title' })}>返回标题</button>
         ) : null}
       </nav>
     </header>
+  )
+}
+
+function VolumeControl({ volume, dispatch }: { volume: number; dispatch: GameDispatch }) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const rangeRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    rangeRef.current?.focus()
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !containerRef.current?.contains(event.target)) setOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setOpen(false)
+      triggerRef.current?.focus()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  return (
+    <div ref={containerRef} className="volume-control">
+      <button
+        ref={triggerRef}
+        className="text-button volume-trigger"
+        type="button"
+        aria-expanded={open}
+        aria-controls="sound-volume-panel"
+        onClick={() => setOpen((current) => !current)}
+      >
+        音量 {volume}%
+      </button>
+      {open ? (
+        <div id="sound-volume-panel" className="volume-popover" role="group" aria-label="音量设置">
+          <div className="volume-readout">
+            <label htmlFor="sound-volume">全局音量</label>
+            <output htmlFor="sound-volume">{volume}%</output>
+          </div>
+          <input
+            ref={rangeRef}
+            id="sound-volume"
+            type="range"
+            min={MIN_SOUND_VOLUME}
+            max={MAX_SOUND_VOLUME}
+            step={10}
+            value={volume}
+            aria-valuetext={`${volume}%`}
+            onChange={(event) => dispatch({ type: 'set-sound-volume', volume: Number(event.currentTarget.value) })}
+          />
+          <div className="volume-scale" aria-hidden="true"><span>{MIN_SOUND_VOLUME}%</span><span>{MAX_SOUND_VOLUME}%</span></div>
+        </div>
+      ) : null}
+    </div>
   )
 }
 

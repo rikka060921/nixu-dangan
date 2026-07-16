@@ -18,6 +18,7 @@ import {
   pickRewardOptions,
 } from '../domain/run'
 import type { CardId, ChallengeId, Era, EventId, GameState, MetaState, RelicId, RunState } from '../domain/types'
+import { normalizeSoundVolume } from './audioSettings'
 import { loadMeta, loadSession } from './storage'
 
 export type GameAction =
@@ -54,6 +55,7 @@ export type GameAction =
   | { type: 'clear-notice' }
   | { type: 'complete-tutorial' }
   | { type: 'toggle-sound' }
+  | { type: 'set-sound-volume'; volume: number }
 
 function randomSeed(): string {
   return String(Math.floor(100000 + Math.random() * 900000))
@@ -163,6 +165,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
   if (action.type === 'toggle-sound') {
     return { ...state, meta: { ...state.meta, soundEnabled: !state.meta.soundEnabled } }
+  }
+  if (action.type === 'set-sound-volume') {
+    return { ...state, meta: { ...state.meta, soundVolume: normalizeSoundVolume(action.volume, state.meta.soundVolume) } }
   }
   if (!state.run) return state
 

@@ -15,6 +15,7 @@ const RESTORED_META: MetaState = {
   ink: 4,
   tutorialDone: true,
   soundEnabled: false,
+  soundVolume: 300,
   lastMode: 'standard',
 }
 
@@ -75,6 +76,32 @@ describe('application smoke flow', () => {
     fireEvent.click(screen.getByRole('button', { name: '游戏说明' }))
     fireEvent.click(screen.getByRole('button', { name: '重看首次引导' }))
     expect(screen.getByRole('dialog', { name: '让真相达到案件目标' })).toBeInTheDocument()
+  })
+
+  it('adjusts, closes and restores the global volume control', () => {
+    render(<App />)
+    const trigger = screen.getByRole('button', { name: '音量 300%' })
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(trigger)
+
+    const slider = screen.getByRole('slider', { name: '全局音量' })
+    expect(slider).toHaveValue('300')
+    expect(slider).toHaveAttribute('aria-valuetext', '300%')
+    expect(slider).toHaveFocus()
+    fireEvent.change(slider, { target: { value: '180' } })
+    expect(screen.getByRole('button', { name: '音量 180%' })).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem(META_KEY) ?? '{}').soundVolume).toBe(180)
+
+    fireEvent.click(screen.getByRole('button', { name: '声音 开' }))
+    expect(JSON.parse(localStorage.getItem(META_KEY) ?? '{}')).toMatchObject({ soundEnabled: false, soundVolume: 180 })
+    fireEvent.keyDown(slider, { key: 'Escape' })
+    expect(screen.queryByRole('slider', { name: '全局音量' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '音量 180%' })).toHaveFocus()
+
+    cleanup()
+    render(<App />)
+    expect(screen.getByRole('button', { name: '音量 180%' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '声音 关' })).toBeInTheDocument()
   })
 
   it('supports battle placement shortcuts and the global manual shortcut', () => {

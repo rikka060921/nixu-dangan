@@ -16,6 +16,7 @@ import { CLUES, EVENTS } from '../content/events'
 import { CHALLENGES, ENCOUNTERS, INCIDENTS, MAP_TEMPLATES, RELICS } from '../content/gameContent'
 import { buildRandomLayers, MIN_DECK_SIZE } from '../domain/run'
 import { seedHash } from '../domain/random'
+import { DEFAULT_SOUND_VOLUME, normalizeSoundVolume } from './audioSettings'
 
 export const SAVE_KEY = 'reverseArchiveSaveV5'
 export const VERSION4_SAVE_KEY = 'reverseArchiveSaveV4'
@@ -29,6 +30,7 @@ const DEFAULT_META: MetaState = {
   ink: 0,
   tutorialDone: false,
   soundEnabled: true,
+  soundVolume: DEFAULT_SOUND_VOLUME,
   lastMode: 'standard',
 }
 
@@ -58,6 +60,7 @@ function normalizeMeta(value: unknown, fallback: MetaState = DEFAULT_META): Meta
     ink: Math.max(0, Math.floor(finiteNumber(meta.ink, fallback.ink))),
     tutorialDone: typeof meta.tutorialDone === 'boolean' ? meta.tutorialDone : fallback.tutorialDone,
     soundEnabled: typeof meta.soundEnabled === 'boolean' ? meta.soundEnabled : fallback.soundEnabled,
+    soundVolume: normalizeSoundVolume(meta.soundVolume, fallback.soundVolume),
     lastMode: isChallenge(meta.lastMode) ? meta.lastMode : fallback.lastMode,
   }
 }

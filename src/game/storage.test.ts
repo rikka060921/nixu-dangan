@@ -14,6 +14,7 @@ const META: MetaState = {
   ink: 0,
   tutorialDone: true,
   soundEnabled: true,
+  soundVolume: 300,
   lastMode: 'standard',
 }
 
@@ -76,6 +77,7 @@ describe('legacy save migration', () => {
       ink: 0,
       tutorialDone: false,
       soundEnabled: true,
+      soundVolume: 300,
       lastMode: 'standard',
     })
     const oldRun = {
@@ -87,7 +89,7 @@ describe('legacy save migration', () => {
     }
     const state: GameState = {
       screen: { name: 'battle' },
-      meta: { runs: 0, wins: 0, ink: 0, tutorialDone: false, soundEnabled: true, lastMode: 'standard' },
+      meta: { runs: 0, wins: 0, ink: 0, tutorialDone: false, soundEnabled: true, soundVolume: 300, lastMode: 'standard' },
       selectedMode: 'standard',
       seedInput: 'old-campaign',
       run: oldRun,
@@ -131,6 +133,7 @@ describe('legacy save migration', () => {
       ink: 0,
       tutorialDone: false,
       soundEnabled: true,
+      soundVolume: 300,
       lastMode: 'standard',
     })
     localStorage.setItem(VERSION4_SAVE_KEY, JSON.stringify({
@@ -138,7 +141,7 @@ describe('legacy save migration', () => {
       version: 4,
       state: {
         screen: { name: 'rest', removing: false },
-        meta: { runs: 0, wins: 0, ink: 0, tutorialDone: false, soundEnabled: true, lastMode: 'standard' },
+        meta: { runs: 0, wins: 0, ink: 0, tutorialDone: false, soundEnabled: true, soundVolume: 300, lastMode: 'standard' },
         selectedMode: 'standard',
         seedInput: 'v4-upgrade',
         run: { ...run, deck: ['seal', 'memory'] },
@@ -158,12 +161,12 @@ describe('legacy save migration', () => {
   })
 
   it('falls back to an older save when the current payload is corrupted', () => {
-    const run = createRun('fallback-save', 'standard', { runs: 0, wins: 0, ink: 0, tutorialDone: true, soundEnabled: true, lastMode: 'standard' })
+    const run = createRun('fallback-save', 'standard', { runs: 0, wins: 0, ink: 0, tutorialDone: true, soundEnabled: true, soundVolume: 300, lastMode: 'standard' })
     localStorage.setItem(SAVE_KEY, '{broken-json')
     localStorage.setItem(VERSION4_SAVE_KEY, JSON.stringify({
       format: 'reverse-archive-save',
       version: 4,
-      state: { screen: { name: 'map' }, meta: { runs: 0, wins: 0, ink: 0, tutorialDone: true, soundEnabled: true, lastMode: 'standard' }, selectedMode: 'standard', seedInput: run.seed, run, battle: null, resumable: null },
+      state: { screen: { name: 'map' }, meta: { runs: 0, wins: 0, ink: 0, tutorialDone: true, soundEnabled: true, soundVolume: 300, lastMode: 'standard' }, selectedMode: 'standard', seedInput: run.seed, run, battle: null, resumable: null },
     }))
 
     const recovered = loadSession()
@@ -172,13 +175,13 @@ describe('legacy save migration', () => {
   })
 
   it('repairs a structurally valid but unplayable V5 payload', () => {
-    const run = createRun('repair-save', 'standard', { runs: 0, wins: 0, ink: 0, tutorialDone: true, soundEnabled: true, lastMode: 'standard' })
+    const run = createRun('repair-save', 'standard', { runs: 0, wins: 0, ink: 0, tutorialDone: true, soundEnabled: true, soundVolume: 300, lastMode: 'standard' })
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       format: 'reverse-archive-save',
       version: 5,
       state: {
         screen: { name: 'battle' },
-        meta: { runs: 1, wins: 0, ink: 2, tutorialDone: true, soundEnabled: true, lastMode: 'standard' },
+        meta: { runs: 1, wins: 0, ink: 2, tutorialDone: true, soundEnabled: true, soundVolume: 300, lastMode: 'standard' },
         selectedMode: 'invalid',
         seedInput: run.seed,
         run: { ...run, timeline: 0, paradox: 99, deck: ['not-a-card'], relics: ['not-a-relic'], layers: [] },
@@ -203,6 +206,7 @@ describe('legacy save migration', () => {
       ink: '7',
       tutorialDone: 'true',
       soundEnabled: 'false',
+      soundVolume: 'loud',
       lastMode: 'unknown',
     }))
 
@@ -212,12 +216,22 @@ describe('legacy save migration', () => {
       ink: 7,
       tutorialDone: false,
       soundEnabled: true,
+      soundVolume: 300,
       lastMode: 'standard',
     })
   })
 
+  it('defaults old volume settings to 300% and clamps stored numeric values', () => {
+    localStorage.setItem(META_KEY, JSON.stringify({ ...META, soundVolume: undefined }))
+    expect(loadMeta().soundVolume).toBe(300)
+    localStorage.setItem(META_KEY, JSON.stringify({ ...META, soundVolume: 999 }))
+    expect(loadMeta().soundVolume).toBe(300)
+    localStorage.setItem(META_KEY, JSON.stringify({ ...META, soundVolume: 0 }))
+    expect(loadMeta().soundVolume).toBe(10)
+  })
+
   it('uses current global meta as the fallback for a partial V5 session', () => {
-    const currentMeta: MetaState = { runs: 9, wins: 3, ink: 17, tutorialDone: true, soundEnabled: false, lastMode: 'paradox' }
+    const currentMeta: MetaState = { runs: 9, wins: 3, ink: 17, tutorialDone: true, soundEnabled: false, soundVolume: 180, lastMode: 'paradox' }
     const run = createRun('meta-fallback', 'standard', META)
     saveV5({ screen: { name: 'map' }, selectedMode: 'standard', seedInput: run.seed, run, battle: null })
 
@@ -311,7 +325,7 @@ describe('legacy save migration', () => {
         configurable: true,
         get: () => { throw new DOMException('blocked', 'SecurityError') },
       })
-      expect(loadMeta()).toEqual({ runs: 0, wins: 0, ink: 0, tutorialDone: false, soundEnabled: true, lastMode: 'standard' })
+      expect(loadMeta()).toEqual({ runs: 0, wins: 0, ink: 0, tutorialDone: false, soundEnabled: true, soundVolume: 300, lastMode: 'standard' })
       expect(loadSession()).toBeNull()
     } finally {
       if (descriptor) Object.defineProperty(window, 'localStorage', descriptor)

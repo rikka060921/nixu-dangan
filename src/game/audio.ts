@@ -1,37 +1,82 @@
 import type { GameAction } from './reducer'
+import { DEFAULT_SOUND_VOLUME, MAX_SOUND_VOLUME, normalizeSoundVolume } from './audioSettings'
 
 type Cue = 'select' | 'place' | 'resolve' | 'page' | 'reward' | 'toggle'
 
-let context: AudioContext | null = null
+interface AudioGraph {
+  context: AudioContext
+  input: GainNode
+  output: GainNode
+  mute: GainNode
+}
 
-function audioContext(): AudioContext | null {
+let graph: AudioGraph | null = null
+let soundEnabled = true
+let soundVolume = DEFAULT_SOUND_VOLUME
+
+function audioGraph(): AudioGraph | null {
   if (typeof window === 'undefined') return null
   const AudioContextClass = window.AudioContext
   if (!AudioContextClass) return null
-  context ??= new AudioContextClass()
-  if (context.state === 'suspended') void context.resume()
-  return context
+  if (!graph) {
+    const context = new AudioContextClass()
+    const input = context.createGain()
+    const output = context.createGain()
+    const limiter = context.createDynamicsCompressor()
+    const mute = context.createGain()
+
+    input.gain.value = 3
+    output.gain.value = soundVolume / MAX_SOUND_VOLUME
+    limiter.threshold.value = -3
+    limiter.knee.value = 0
+    limiter.ratio.value = 20
+    limiter.attack.value = 0.003
+    limiter.release.value = 0.1
+    mute.gain.value = soundEnabled ? 1 : 0
+
+    input.connect(output)
+    output.connect(limiter)
+    limiter.connect(mute)
+    mute.connect(context.destination)
+    graph = { context, input, output, mute }
+  }
+  if (graph.context.state === 'suspended') void graph.context.resume()
+  return graph
+}
+
+function smoothGain(param: AudioParam, value: number, context: AudioContext): void {
+  param.cancelScheduledValues(context.currentTime)
+  param.setTargetAtTime(value, context.currentTime, 0.01)
+}
+
+export function setAudioPreferences(preferences: { enabled: boolean; volume: number }): void {
+  soundEnabled = preferences.enabled
+  soundVolume = normalizeSoundVolume(preferences.volume)
+  if (!graph) return
+  smoothGain(graph.output.gain, soundVolume / MAX_SOUND_VOLUME, graph.context)
+  smoothGain(graph.mute.gain, soundEnabled ? 1 : 0, graph.context)
 }
 
 function tone(frequency: number, duration: number, volume: number, delay = 0, type: OscillatorType = 'sine'): void {
-  const audio = audioContext()
+  const audio = audioGraph()
   if (!audio) return
-  const start = audio.currentTime + delay
-  const oscillator = audio.createOscillator()
-  const gain = audio.createGain()
+  const start = audio.context.currentTime + delay
+  const oscillator = audio.context.createOscillator()
+  const gain = audio.context.createGain()
   oscillator.type = type
   oscillator.frequency.setValueAtTime(frequency, start)
   gain.gain.setValueAtTime(0.0001, start)
   gain.gain.exponentialRampToValueAtTime(volume, start + 0.008)
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
   oscillator.connect(gain)
-  gain.connect(audio.destination)
+  gain.connect(audio.input)
   oscillator.start(start)
   oscillator.stop(start + duration + 0.02)
 }
 
 export function playCue(cue: Cue): void {
   try {
+    if (!soundEnabled) return
     if (cue === 'select') tone(420, 0.07, 0.025, 0, 'triangle')
     if (cue === 'place') {
       tone(310, 0.09, 0.03, 0, 'triangle')

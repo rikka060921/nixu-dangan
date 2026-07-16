@@ -229,6 +229,7 @@ export interface MetaState {
   ink: number
   tutorialDone: boolean
   soundEnabled: boolean
+  soundVolume: number
   lastMode: ChallengeId
 }
 

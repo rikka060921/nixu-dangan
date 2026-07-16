@@ -11,6 +11,7 @@ const META: MetaState = {
   ink: 0,
   tutorialDone: false,
   soundEnabled: true,
+  soundVolume: 300,
   lastMode: 'standard',
 }
 
@@ -48,6 +49,16 @@ function winningBattle(): BattleState {
 }
 
 describe('game reducer loop', () => {
+  it('clamps global volume without coupling it to the sound toggle', () => {
+    const adjusted = gameReducer(titleState(), { type: 'set-sound-volume', volume: 175 })
+    expect(adjusted.meta.soundVolume).toBe(175)
+    const tooLoud = gameReducer(adjusted, { type: 'set-sound-volume', volume: 900 })
+    expect(tooLoud.meta.soundVolume).toBe(300)
+    const tooQuiet = gameReducer(tooLoud, { type: 'set-sound-volume', volume: 0 })
+    expect(tooQuiet.meta.soundVolume).toBe(10)
+    expect(gameReducer(tooQuiet, { type: 'toggle-sound' }).meta).toEqual({ ...tooQuiet.meta, soundEnabled: false })
+  })
+
   it('starts a seeded run and advances an event node back to the map', () => {
     const started = gameReducer(titleState(), { type: 'start-run' })
     expect(started.screen.name).toBe('map')

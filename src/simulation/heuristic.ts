@@ -10,6 +10,7 @@ const META: MetaState = {
   ink: 0,
   tutorialDone: true,
   soundEnabled: false,
+  soundVolume: 300,
   lastMode: 'standard',
 }
 

@@ -185,7 +185,7 @@ function Manual({ onClose, onReplayTutorial }: { onClose: () => void; onReplayTu
           <article><span>03</span><h3>结算</h3><p>确认后严格从过去走向未来。执行前可以撤回已经放置的牌，并获得对应能量退款。</p></article>
           <article><span>04</span><h3>构筑</h3><p>「证」积累真相，「因」保护时间线，「改」扭转事件，「锚」固定历史，「悖」以风险换取爆发。</p></article>
           <article><span>05</span><h3>路线</h3><p>案件给卡牌与回声；精英额外给遗物；事件、休整和商店用于修正资源与牌组。</p></article>
-          <article><span>06</span><h3>输入、声音与存档</h3><p>战斗中用 1–5 选牌、Q/W/E 选择时代、Backspace 撤回、Enter 结算。按 ? 打开本说明；声音可在顶部关闭，每次操作都会自动保存。</p></article>
+          <article><span>06</span><h3>输入、声音与存档</h3><p>战斗中用 1–5 选牌、Q/W/E 选择时代、Backspace 撤回、Enter 结算。按 ? 打开本说明；声音开关与音量可在顶部调节，每次操作都会自动保存。</p></article>
         </div>
         <footer className="manual-footer"><button className="text-button" type="button" onClick={onReplayTutorial}>重看首次引导</button></footer>
       </section>
