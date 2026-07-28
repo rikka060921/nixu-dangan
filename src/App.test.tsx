@@ -92,7 +92,7 @@ describe('application smoke flow', () => {
     expect(screen.getByRole('button', { name: '音量 180%' })).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem(META_KEY) ?? '{}').soundVolume).toBe(180)
 
-    fireEvent.click(screen.getByRole('button', { name: '声音 开' }))
+    fireEvent.click(screen.getByRole('button', { name: '音乐 开' }))
     expect(JSON.parse(localStorage.getItem(META_KEY) ?? '{}')).toMatchObject({ soundEnabled: false, soundVolume: 180 })
     fireEvent.keyDown(slider, { key: 'Escape' })
     expect(screen.queryByRole('slider', { name: '全局音量' })).not.toBeInTheDocument()
@@ -101,7 +101,7 @@ describe('application smoke flow', () => {
     cleanup()
     render(<App />)
     expect(screen.getByRole('button', { name: '音量 180%' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '声音 关' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '音乐 关' })).toBeInTheDocument()
   })
 
   it('supports battle placement shortcuts and the global manual shortcut', () => {

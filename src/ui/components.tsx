@@ -42,7 +42,15 @@ export function Header({
       </div>
       <nav className="top-actions" aria-label="全局操作">
         <span className="top-location">{title}</span>
-        <button className="text-button" type="button" aria-pressed={state.meta.soundEnabled} onClick={() => dispatch({ type: 'toggle-sound' })}>声音 {state.meta.soundEnabled ? '开' : '关'}</button>
+        <button
+          className="text-button"
+          type="button"
+          title="控制背景音乐与操作提示音"
+          aria-pressed={state.meta.soundEnabled}
+          onClick={() => dispatch({ type: 'toggle-sound' })}
+        >
+          音乐 {state.meta.soundEnabled ? '开' : '关'}
+        </button>
         <VolumeControl volume={state.meta.soundVolume} dispatch={dispatch} />
         <button className="text-button" type="button" onClick={onOpenManual}>游戏说明</button>
         {state.screen.name !== 'title' && state.screen.name !== 'ending' ? (
