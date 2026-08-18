@@ -1,4 +1,3 @@
-import type { GameAction } from './reducer'
 import { DEFAULT_SOUND_VOLUME, MAX_SOUND_VOLUME, normalizeSoundVolume } from './audioSettings'
 
 type Cue = 'select' | 'place' | 'resolve' | 'page' | 'reward' | 'toggle'
@@ -84,12 +83,14 @@ function smoothGain(param: AudioParam, value: number, context: AudioContext): vo
 }
 
 export function setAudioPreferences(preferences: { enabled: boolean; volume: number }): void {
+  const wasEnabled = soundEnabled
   soundEnabled = preferences.enabled
   soundVolume = normalizeSoundVolume(preferences.volume)
   if (!graph) return
   smoothGain(graph.output.gain, soundVolume / MAX_SOUND_VOLUME, graph.context)
   smoothGain(graph.mute.gain, soundEnabled ? 1 : 0, graph.context)
   if (!soundEnabled) stopMusic()
+  else if (!wasEnabled) restartMusic()
 }
 
 function stopMusic(): void {
@@ -198,14 +199,4 @@ export function playCue(cue: Cue): void {
   } catch {
     // Audio feedback is optional and must never interrupt the run.
   }
-}
-
-export function cueForAction(action: GameAction['type']): Cue | null {
-  if (action === 'select-card' || action === 'remove-placed') return 'select'
-  if (action === 'place-card') return 'place'
-  if (action === 'resolve-timeline') return 'resolve'
-  if (action === 'choose-reward' || action === 'buy-shop-relic' || action === 'upgrade-rest-card' || action === 'upgrade-shop-card') return 'reward'
-  if (action === 'toggle-sound') return 'toggle'
-  if (['start-run', 'select-node', 'choose-event', 'choose-rest', 'continue-chapter', 'leave-shop'].includes(action)) return 'page'
-  return null
 }

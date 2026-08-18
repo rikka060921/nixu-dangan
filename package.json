@@ -1,7 +1,7 @@
 {
   "name": "reverse-archive",
-  "version": "0.1.0-rc.1",
-  "description": "《逆序档案》因果时间轴卡牌肉鸽",
+  "version": "1.0.0-alpha.1",
+  "description": "《逆序档案》双时间线连锁卡牌爽游",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -12,13 +12,13 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -b --pretty false",
-    "simulate": "tsx scripts/simulate.ts"
+    "typecheck": "tsc -b --pretty false"
   },
   "keywords": [
     "card-game",
-    "roguelike",
-    "causality"
+    "timeline",
+    "causality",
+    "combo-game"
   ],
   "license": "UNLICENSED",
   "type": "module",

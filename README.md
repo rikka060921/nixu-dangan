@@ -1,18 +1,26 @@
-# 逆序档案
+# 逆序档案 1.x
 
-一款围绕“过去 / 现在 / 未来”因果编排展开的卡牌肉鸽。玩家不是削减敌人生命，而是在固定灾难发生前安排人物行动、证据、锚点与时间改写，建立足够的真相。
+一款简单、直观的双时间线连锁卡牌爽游。玩家同时操纵过去与未来：先在地图上改变过去，打开不同的未来路线；再从五张手牌中闭合三张，让因果在两条时间线之间来回爆发。
 
-当前 `0.1.0-rc.1` 包含十八层三幕战役、20 张可独立升级的卡牌、11 件遗物、18 个战斗案件、6 个异常事件、线索驱动终局，以及 V2 至 V5 的存档迁移与损坏恢复。
+当前版本为 `1.0.0-alpha.1`。它包含 4 章完整流程、8 组过去分支、16 个受过去影响的未来节点、12 张低文字量卡牌、自动最优三牌连锁、第三轮紧急回溯与本地断点存档。
 
 ## 在线游玩
 
-[打开《逆序档案》在线版](https://rikka060921.github.io/nixu-dangan/)。存档保存在当前浏览器本地；受浏览器自动播放规则限制，背景音乐会在首次点击或按键后开始。
+[打开《逆序档案》1.x 在线版](https://rikka060921.github.io/nixu-dangan/)。存档保存在当前浏览器；受浏览器自动播放规则限制，300% 默认音量的背景音乐会在首次点击或按键后开始。
 
 ## 下载游玩
 
-从 GitHub Releases 下载文件名以 `-offline.zip` 结尾的版本，解压后双击 `Reverse-Archive.html` 即可离线游玩，不需要安装 Node.js。存档保存在打开游戏的浏览器本地。
+从 GitHub Releases 下载文件名以 `-offline.zip` 结尾的版本，解压后双击 `Reverse-Archive.html` 即可离线游玩，不需要安装 Node.js。
 
-## 开发命令
+## 三步玩法
+
+1. 在红色时间线选择一个过去事件。
+2. 从因此改变的蓝色未来中选择目的地。
+3. 点击“一键爽打”，或自己安排三张牌，然后闭合双线。
+
+过去 → 未来 → 过去的切换越多，爆发越高。玩家无需理解全部牌效也能通关；理解回声、伏笔、证人与锚点后，可以打出更夸张的数字。
+
+## 开发
 
 ```bash
 pnpm install
@@ -22,15 +30,8 @@ pnpm typecheck
 pnpm build
 pnpm build:pages
 pnpm package:offline
-pnpm simulate 1000
-pnpm simulate 1000 balanced
-pnpm simulate 1000 balanced paradox
 ```
 
-旧的完整闭环原型保留在 `nixu-dangan-demo/nixu-dangan-demo_9.html`。正式工程从根目录 `src/` 开始演进。
+0.x 经典规则已经停止维护，可通过 Git 标签 `v0.2.0-archive` 完整恢复。1.x 与 0.x 使用不同的本地存档键，不会覆盖旧浏览器存档。
 
-详细路线见 [开发计划](docs/DEVELOPMENT_PLAN.md)。
-
-当前发布状态、平衡指标与限制见 [开发状态](docs/STATUS.md)，发布验收项见 [发布检查](docs/RELEASE_CHECKLIST.md)。
-
-`pnpm simulate <局数> [combat|balanced] [standard|paradox|zero]` 可选择全战斗或策略代理与三种挑战模式。两类代理都会输出胜率、章节到达率、死亡原因、楼层分布与终局资源，用于数值回归而不是替代真人试玩。
+详细状态见 [开发状态](docs/STATUS.md)，版本验收项见 [发布检查](docs/RELEASE_CHECKLIST.md)。
