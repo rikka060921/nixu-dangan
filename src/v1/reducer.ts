@@ -23,7 +23,7 @@ function newRunState(state: GameStateV1): GameStateV1 {
     battle: null,
     resumable: null,
     seedInput: run.seed,
-    notice: '双线已接通：先改变过去，再选择被改写的未来。',
+    notice: '第一步：先在红色区域任选一件过去发生的事。',
   }
 }
 
@@ -108,7 +108,7 @@ function finishChapter(state: GameStateV1, reward?: V1CardId): GameStateV1 {
     screen: { name: 'map' },
     run,
     battle: null,
-    notice: `档案 ${chapter.number} 已闭合，下一组因果正在显现。`,
+    notice: `第 ${Number(chapter.number)} 关已通过，下一关已经打开。`,
   }
 }
 
@@ -139,7 +139,7 @@ export function gameReducerV1(state: GameStateV1, action: GameActionV1): GameSta
       return {
         ...state,
         run: { ...state.run, currentPastId: action.choiceId, currentFutureId: undefined },
-        notice: '过去已经改变。现在选择它将抵达的未来。',
+        notice: '很好！蓝色未来已经改变，现在从中选择一个结果。',
       }
     }
     case 'choose-future': {
@@ -163,7 +163,7 @@ export function gameReducerV1(state: GameStateV1, action: GameActionV1): GameSta
       return {
         ...state,
         battle: { ...state.battle, stagedUids: suggestPlan(state.battle.hand, state.battle.routeBonus) },
-        notice: '已排好本轮最高爆发。你也可以换顺序试试。',
+        notice: '已自动选好本轮最高分的三张牌。现在点击“开始结算”。',
       }
     case 'clear-stage':
       return state.battle && !state.battle.resolution
@@ -185,10 +185,10 @@ export function gameReducerV1(state: GameStateV1, action: GameActionV1): GameSta
           ...resolution,
           impact: resolution.impact + missing,
           chain: resolution.chain + missing,
-          peakLabel: '紧急回溯',
+            peakLabel: '新手保护',
           events: [...resolution.events, {
-            kind: 'rewind', title: '档案局紧急回溯',
-            detail: '第三轮仍未闭合时，系统替你把关键动作送回过去。', gain: missing,
+            kind: 'rewind', title: '新手通关保护',
+            detail: '第三轮仍未达到目标时，系统自动补足剩余分数。', gain: missing,
           }],
         }
       }
@@ -228,7 +228,7 @@ export function gameReducerV1(state: GameStateV1, action: GameActionV1): GameSta
           nextUid: drawn.nextUid,
           resolution: undefined,
         },
-        notice: '新一轮已展开；路线余波会继续为你提供基础爆发。',
+        notice: '新一轮开始。继续使用“一键推荐”即可轻松过关。',
       }
     }
     case 'choose-reward':

@@ -8,14 +8,13 @@ import { App } from './App'
 import { V1_META_KEY, V1_SAVE_KEY } from './v1/storage'
 
 function closeFirstRunManual() {
-  const button = screen.queryByRole('button', { name: '接通双线' })
+  const button = screen.queryByRole('button', { name: '跳过教程，直接玩' })
   if (button) fireEvent.click(button)
 }
 
 function enterFirstBattle() {
   closeFirstRunManual()
-  fireEvent.change(screen.getByLabelText('档案种子'), { target: { value: 'DUAL-LINE-TEST' } })
-  fireEvent.click(screen.getByRole('button', { name: '新建双线档案' }))
+  fireEvent.click(screen.getByRole('button', { name: '开始新游戏' }))
   fireEvent.click(screen.getByRole('button', { name: /救下监察官/ }))
   fireEvent.click(screen.getByRole('button', { name: /活人法庭/ }))
 }
@@ -26,24 +25,40 @@ describe('1.x application flow', () => {
     localStorage.clear()
   })
 
-  it('teaches the three-action loop and remembers completion', () => {
+  it('guides a new player through every action in the first battle', () => {
     render(<App />)
-    expect(screen.getByRole('dialog', { name: '不用算，也能把时间线炸穿' })).toBeInTheDocument()
-    expect(screen.getByText('先改过去')).toBeInTheDocument()
-    expect(screen.getByText('再选未来')).toBeInTheDocument()
-    expect(screen.getByText('一键爽打')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '先做一件事，再看它造成什么结果' })).toBeInTheDocument()
+    expect(screen.getByText('先选择过去')).toBeInTheDocument()
+    expect(screen.getByText('再选择结果')).toBeInTheDocument()
+    expect(screen.getAllByText('未来回传').length).toBeGreaterThan(0)
 
-    fireEvent.click(screen.getByRole('button', { name: '接通双线' }))
+    fireEvent.click(screen.getByRole('button', { name: '开始分步教程' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '开始新游戏' }))
+    expect(screen.getByRole('heading', { name: '先点一个红色选项' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /救下监察官/ }))
+    expect(screen.getByRole('heading', { name: '再点一个蓝色结果' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /活人法庭/ }))
+    expect(screen.getByRole('heading', { name: '第一次先用“一键推荐”' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /一键推荐/ }))
+    expect(screen.getByRole('heading', { name: '看看预计分数，然后结算' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^开始结算/ }))
+    expect(screen.getByRole('heading', { name: '这些记录只是在解释加分' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /过关！选择奖励/ }))
+    expect(screen.getByRole('heading', { name: '教程完成！' })).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: /加入牌库/ })[0])
     expect(JSON.parse(localStorage.getItem(V1_META_KEY) ?? '{}').tutorialDone).toBe(true)
   })
 
   it('changes the available future after choosing a past route', () => {
     render(<App />)
     closeFirstRunManual()
-    fireEvent.click(screen.getByRole('button', { name: '新建双线档案' }))
+    fireEvent.click(screen.getByRole('button', { name: '开始新游戏' }))
 
-    expect(screen.getByText('先改变过去')).toBeInTheDocument()
+    expect(screen.getByText('先选择上方红色选项')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /偷走死亡报告/ }))
     expect(screen.getByRole('button', { name: /完整罪证/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /灰烬保险库/ })).toBeInTheDocument()
@@ -59,14 +74,14 @@ describe('1.x application flow', () => {
     enterFirstBattle()
     const hand = screen.getByRole('region', { name: '本轮手牌' })
 
-    fireEvent.click(screen.getByRole('button', { name: /一键爽打/ }))
+    fireEvent.click(screen.getByRole('button', { name: /一键推荐/ }))
     expect(within(hand).getAllByRole('button', { pressed: true })).toHaveLength(3)
-    expect(screen.getByText('预计爆发').parentElement).not.toHaveTextContent('—')
+    expect(screen.getByText('预计得到').parentElement).not.toHaveTextContent('—')
 
-    fireEvent.click(screen.getByRole('button', { name: /闭合双线/ }))
-    expect(screen.getByText('本轮因果冲击')).toBeInTheDocument()
-    expect(screen.getAllByText(/双线接力|时间线闭合/).length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: /领取闭环奖励|展开下一轮/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^开始结算/ }))
+    expect(screen.getByText('本轮得分')).toBeInTheDocument()
+    expect(screen.getAllByText(/红蓝切换|三张牌结算/).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: /过关！选择奖励|继续下一轮/ })).toBeInTheDocument()
   })
 
   it('supports keyboard auto-play and keeps the 300 percent global volume setting', () => {
@@ -77,7 +92,7 @@ describe('1.x application flow', () => {
     fireEvent.keyDown(window, { key: 'a' })
     expect(within(hand).getAllByRole('button', { pressed: true })).toHaveLength(3)
     fireEvent.keyDown(window, { key: 'Enter' })
-    expect(screen.getByText('本轮因果冲击')).toBeInTheDocument()
+    expect(screen.getByText('本轮得分')).toBeInTheDocument()
 
     fireEvent.change(screen.getByRole('slider', { name: '全局音量' }), { target: { value: '210' } })
     expect(screen.getByLabelText('打开音量设置')).toHaveTextContent('210%')
@@ -88,13 +103,13 @@ describe('1.x application flow', () => {
   it('persists a route breakpoint and resumes it on reload', () => {
     render(<App />)
     closeFirstRunManual()
-    fireEvent.click(screen.getByRole('button', { name: '新建双线档案' }))
+    fireEvent.click(screen.getByRole('button', { name: '开始新游戏' }))
     fireEvent.click(screen.getByRole('button', { name: /偷走死亡报告/ }))
     expect(localStorage.getItem(V1_SAVE_KEY)).toContain('steal-report')
 
     cleanup()
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '继续上次断点' }))
+    fireEvent.click(screen.getByRole('button', { name: '继续游戏' }))
     expect(screen.getByRole('button', { name: /完整罪证/ })).toBeInTheDocument()
     expect(screen.getByText('已从双线断点继续。')).toBeInTheDocument()
   })

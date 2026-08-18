@@ -1,18 +1,18 @@
 import type { ChapterDefinition, V1CardDefinition, V1CardId } from './types'
 
 export const V1_CARDS: Record<V1CardId, V1CardDefinition> = {
-  seed: { id: 'seed', name: '埋下伏笔', glyph: '因', lane: 'past', effect: 'seed', power: 2, rarity: '常规', brief: '留下一个起因', link: '未来可以引爆' },
-  witness: { id: 'witness', name: '救下证人', glyph: '人', lane: 'past', effect: 'witness', power: 3, rarity: '常规', brief: '创造一名证人', link: '证言会倍增' },
-  anchor: { id: 'anchor', name: '钉死此刻', glyph: '锚', lane: 'past', effect: 'anchor', power: 3, rarity: '常规', brief: '固定一段历史', link: '提高本轮收益' },
-  signal: { id: 'signal', name: '提前留言', glyph: '信', lane: 'past', effect: 'signal', power: 2, rarity: '闪光', brief: '向未来发出信号', link: '换线时加速' },
-  echo: { id: 'echo', name: '未来回声', glyph: '回', lane: 'future', effect: 'echo', power: 2, rarity: '常规', brief: '引爆过去的积累', link: '产生一枚回声' },
-  testimony: { id: 'testimony', name: '公开证言', glyph: '证', lane: 'future', effect: 'testimony', power: 3, rarity: '常规', brief: '每名证人都爆发', link: '证人越多越强' },
-  resonance: { id: 'resonance', name: '因果共振', glyph: '鸣', lane: 'future', effect: 'resonance', power: 3, rarity: '闪光', brief: '同时点燃全部伏笔', link: '伏笔越多越强' },
-  backflow: { id: 'backflow', name: '答案回流', glyph: '逆', lane: 'future', effect: 'backflow', power: 2, rarity: '闪光', brief: '将两枚回声送回过去', link: '下张过去牌连续触发' },
-  rewrite: { id: 'rewrite', name: '改写昨日', glyph: '改', lane: 'past', effect: 'rewrite', power: 4, rarity: '闪光', brief: '消耗回声重写过去', link: '回声越多越强' },
-  cascade: { id: 'cascade', name: '明日倾泻', glyph: '潮', lane: 'future', effect: 'cascade', power: 4, rarity: '失控', brief: '汇总两条时间线', link: '适合放在最后' },
-  paradox: { id: 'paradox', name: '悖论爆炸', glyph: '爆', lane: 'future', effect: 'paradox', power: 5, rarity: '失控', brief: '引爆当前所有能量', link: '场面越大越强' },
-  synchronize: { id: 'synchronize', name: '双线同步', glyph: '合', lane: 'past', effect: 'synchronize', power: 4, rarity: '失控', brief: '按换线次数追加爆发', link: '来回切换时最强' },
+  seed: { id: 'seed', name: '留下线索', glyph: '因', lane: 'past', effect: 'seed', power: 2, rarity: '常规', brief: '线索 +1', link: '未来牌会利用它加分' },
+  witness: { id: 'witness', name: '救下证人', glyph: '人', lane: 'past', effect: 'witness', power: 3, rarity: '常规', brief: '证人 +1', link: '证言牌会因此加分' },
+  anchor: { id: 'anchor', name: '稳住现场', glyph: '锚', lane: 'past', effect: 'anchor', power: 3, rarity: '常规', brief: '稳定 +1', link: '本轮结算额外加分' },
+  signal: { id: 'signal', name: '提前传话', glyph: '信', lane: 'past', effect: 'signal', power: 2, rarity: '闪光', brief: '利用未来能量', link: '过去未来都有牌时更强' },
+  echo: { id: 'echo', name: '未来回传', glyph: '回', lane: 'future', effect: 'echo', power: 2, rarity: '常规', brief: '把结果送回过去', link: '下一张过去牌会再加分' },
+  testimony: { id: 'testimony', name: '公开证言', glyph: '证', lane: 'future', effect: 'testimony', power: 3, rarity: '常规', brief: '按证人数量加分', link: '证人越多越强' },
+  resonance: { id: 'resonance', name: '引爆线索', glyph: '鸣', lane: 'future', effect: 'resonance', power: 3, rarity: '闪光', brief: '按线索数量加分', link: '线索越多越强' },
+  backflow: { id: 'backflow', name: '双倍回传', glyph: '逆', lane: 'future', effect: 'backflow', power: 2, rarity: '闪光', brief: '回传 +2', link: '下一张过去牌大幅加分' },
+  rewrite: { id: 'rewrite', name: '重做一次', glyph: '改', lane: 'past', effect: 'rewrite', power: 4, rarity: '闪光', brief: '接收全部回传', link: '回传越多越强' },
+  cascade: { id: 'cascade', name: '总分翻涌', glyph: '潮', lane: 'future', effect: 'cascade', power: 4, rarity: '失控', brief: '汇总当前分数', link: '放在最后通常最强' },
+  paradox: { id: 'paradox', name: '全场爆发', glyph: '爆', lane: 'future', effect: 'paradox', power: 5, rarity: '失控', brief: '引爆所有积累', link: '积累越多越强' },
+  synchronize: { id: 'synchronize', name: '红蓝同步', glyph: '合', lane: 'past', effect: 'synchronize', power: 4, rarity: '失控', brief: '按换色次数加分', link: '红蓝交替时最强' },
 }
 
 export const START_DECK_V1: V1CardId[] = [
@@ -35,8 +35,8 @@ export const CHAPTERS_V1: ChapterDefinition[] = [
       {
         id: 'steal-report', title: '偷走死亡报告', glyph: '盗', brief: '让结果早于谋杀出现', result: '一份来自明天的报告成了今夜的起因。', bonus: { seeds: 2, anchors: 1 },
         futures: [
-          { id: 'complete-proof', title: '完整罪证', glyph: '卷', brief: '让未来追溯每一处伏笔', result: '所有伏笔被同时点亮。', bonus: { seeds: 1 }, openingCard: 'resonance' },
-          { id: 'ash-safe', title: '灰烬保险库', glyph: '灰', brief: '从毁掉的未来取回一把钥匙', result: '钥匙的回声打开了它被烧毁前的门。', bonus: { echoes: 2, anchors: 1 }, openingCard: 'rewrite' },
+          { id: 'complete-proof', title: '完整罪证', glyph: '卷', brief: '让未来追溯每一条线索', result: '所有线索被同时点亮。', bonus: { seeds: 1 }, openingCard: 'resonance' },
+          { id: 'ash-safe', title: '灰烬保险库', glyph: '灰', brief: '从毁掉的未来取回一把钥匙', result: '未来送回的钥匙打开了它被烧毁前的门。', bonus: { echoes: 2, anchors: 1 }, openingCard: 'rewrite' },
         ],
       },
     ],
@@ -55,7 +55,7 @@ export const CHAPTERS_V1: ChapterDefinition[] = [
       {
         id: 'mark-bell', title: '在钟锤上留名', glyph: '名', brief: '让每次钟响都记得你', result: '未来的所有钟声都指向同一个原因。', bonus: { seeds: 3 },
         futures: [
-          { id: 'echo-square', title: '回声广场', glyph: '鸣', brief: '让全城同时听见你的名字', result: '钟声把所有伏笔串成了一条线。', bonus: { seeds: 2 }, openingCard: 'resonance' },
+          { id: 'echo-square', title: '同步广场', glyph: '鸣', brief: '让全城同时听见你的名字', result: '钟声把所有线索串成了一条线。', bonus: { seeds: 2 }, openingCard: 'resonance' },
           { id: 'young-keeper', title: '尚未出生的守钟人', glyph: '子', brief: '请未来的守钟人教你修钟', result: '答案比问题早了二十年回到过去。', bonus: { echoes: 3 }, openingCard: 'backflow' },
         ],
       },
@@ -66,7 +66,7 @@ export const CHAPTERS_V1: ChapterDefinition[] = [
     story: '报纸每天只印明天的结局，却从不记录今天的原因。',
     pastChoices: [
       {
-        id: 'print-cause', title: '印下一个原因', glyph: '印', brief: '在头版留下今夜的伏笔', result: '未来的所有结局开始追溯这行字。', bonus: { seeds: 4 },
+        id: 'print-cause', title: '印下一个原因', glyph: '印', brief: '在头版留下关键线索', result: '未来的所有结局开始追溯这行字。', bonus: { seeds: 4 },
         futures: [
           { id: 'cause-edition', title: '因由特刊', glyph: '因', brief: '让全城翻阅同一个原因', result: '每一份报纸都变成了连锁的一环。', bonus: { seeds: 2, echoes: 1 }, openingCard: 'resonance' },
           { id: 'blank-frontpage', title: '空白头版', glyph: '白', brief: '让未来为空白自己填写答案', result: '一份未曾印刷的报纸逆流回今夜。', bonus: { echoes: 3 }, openingCard: 'rewrite' },

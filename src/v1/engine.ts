@@ -106,8 +106,8 @@ export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}
   if (chain > 0) {
     addEvent(events, {
       kind: 'surge',
-      title: '路线余波',
-      detail: '你在地图上的选择已提前写入这场战斗。',
+      title: '路线加分',
+      detail: '你刚才选择的过去和未来，已经提供了开局分数。',
       gain: chain,
     })
   }
@@ -120,8 +120,8 @@ export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}
       chain += addEvent(events, {
         kind: 'relay',
         lane: card.lane,
-        title: `第 ${relays} 次双线接力`,
-        detail: `${previousLane === 'past' ? '过去' : '未来'}把因果权交给${card.lane === 'past' ? '过去' : '未来'}。`,
+        title: `第 ${relays} 次红蓝切换`,
+        detail: `从${previousLane === 'past' ? '红色过去' : '蓝色未来'}换到${card.lane === 'past' ? '红色过去' : '蓝色未来'}，获得额外分数。`,
         gain: relayGain,
       })
     }
@@ -166,8 +166,8 @@ export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}
           const echoGain = echoes * (pastCharge + 3)
           gain += echoGain
           addEvent(events, {
-            kind: 'echo', lane: 'past', title: '未来改写过去',
-            detail: `${echoes} 枚未来回声倒灌，过去被连续改写。`, gain: echoGain,
+            kind: 'echo', lane: 'past', title: '未来回传',
+            detail: `${echoes} 次回传让这张过去牌获得额外分数。`, gain: echoGain,
           })
           echoes = 0
         } else gain += anchors * 3
@@ -187,8 +187,8 @@ export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}
       const echoGain = echoes * (card.power + seeds + 2)
       gain += echoGain
       addEvent(events, {
-        kind: 'echo', lane: 'past', title: '答案逆流',
-        detail: `${echoes} 枚未来回声让「${card.name}」重复发生。`, gain: echoGain,
+        kind: 'echo', lane: 'past', title: '未来回传',
+        detail: `${echoes} 次回传让「${card.name}」再次加分。`, gain: echoGain,
       })
       echoes = 0
     }
@@ -204,17 +204,17 @@ export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}
   const closure = Math.floor((pastCharge + futureCharge) / 2) + anchors + relays * 2
   if (closure > 0) {
     chain += addEvent(events, {
-      kind: 'surge', title: '时间线闭合', detail: '两条时间线将剩余能量一次清算。', gain: closure,
+      kind: 'surge', title: '三张牌结算', detail: '红色与蓝色牌的剩余能量转成最终分数。', gain: closure,
     })
   }
 
   const peakLabel = chain >= 70
-    ? '时间崩坏'
+    ? '超级爆发'
     : chain >= 45
-      ? '因果风暴'
+      ? '大爆发'
       : chain >= 28
-        ? '双线爆发'
-        : '回声连锁'
+        ? '连锁爆发'
+        : '连锁成功'
 
   return { chain, impact: chain, events, peakLabel }
 }
