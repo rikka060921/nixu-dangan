@@ -91,10 +91,21 @@ describe('1.x application flow', () => {
     enterFirstBattle()
     const hand = screen.getByRole('region', { name: '本轮手牌' })
 
-    fireEvent.keyDown(window, { key: '1' })
-    fireEvent.keyDown(window, { key: '2' })
-    fireEvent.keyDown(window, { key: '3' })
+    fireEvent.click(screen.getAllByRole('button', { name: '采用这个思路' })[0])
+    const plannedKeys = within(hand).getAllByRole('button', { pressed: true })
+      .map((button) => {
+        const label = button.getAttribute('aria-label') ?? ''
+        return {
+          key: label.split('：')[0],
+          order: Number(label.match(/连锁第 (\d+) 张/)?.[1] ?? 0),
+        }
+      })
+      .sort((left, right) => left.order - right.order)
+    fireEvent.click(screen.getByRole('button', { name: '清空' }))
+    plannedKeys.forEach(({ key }) => fireEvent.keyDown(window, { key }))
     expect(within(hand).getAllByRole('button', { pressed: true })).toHaveLength(3)
+    const rewindPicker = screen.queryByRole('region', { name: '选择时间回传目标' })
+    if (rewindPicker) fireEvent.click(within(rewindPicker).getAllByRole('button')[0])
     fireEvent.keyDown(window, { key: 'Enter' })
     expect(screen.getByText('本轮得分')).toBeInTheDocument()
 
