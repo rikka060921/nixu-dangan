@@ -1,6 +1,6 @@
 {
   "name": "reverse-archive",
-  "version": "1.0.0-alpha.2",
+  "version": "1.0.0-alpha.3",
   "description": "《逆序档案》双时间线连锁卡牌爽游",
   "private": true,
   "scripts": {

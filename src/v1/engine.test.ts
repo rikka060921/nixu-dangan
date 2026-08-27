@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { drawHand, hashSeed, resolvePlan, suggestPlan } from './engine'
+import { drawHand, hashSeed, resolvePlan, strategyPlans } from './engine'
 import type { CardInstanceV1 } from './types'
 
 const cards = (ids: CardInstanceV1['cardId'][]): CardInstanceV1[] => ids.map((cardId, index) => ({ uid: `t${index}`, cardId }))
@@ -15,20 +15,30 @@ describe('1.x causal chain engine', () => {
     expect(first.hand.some((card) => card.cardId === 'echo' || card.cardId === 'backflow')).toBe(true)
   })
 
-  it('rewards switching timelines and lets future echoes rewrite the past', () => {
+  it('rewards switching timelines and lets future rewind replay the past', () => {
     const oneLane = resolvePlan(cards(['seed', 'witness', 'anchor']))
-    const dualLine = resolvePlan(cards(['seed', 'backflow', 'rewrite']))
+    const dualLine = resolvePlan(cards(['seed', 'rewrite', 'backflow']), {}, 't0')
     expect(dualLine.events.some((event) => event.kind === 'relay')).toBe(true)
-    expect(dualLine.events.some((event) => event.kind === 'echo')).toBe(true)
+    expect(dualLine.events.some((event) => event.kind === 'rewind')).toBe(true)
+    expect(dualLine.events.some((event) => event.title === '重放 · 留下线索')).toBe(true)
     expect(dualLine.impact).toBeGreaterThan(oneLane.impact)
   })
 
-  it('finds the strongest ordered three-card plan automatically', () => {
-    const hand = cards(['seed', 'echo', 'backflow', 'rewrite', 'anchor'])
-    const suggestion = suggestPlan(hand, { echoes: 1, seeds: 1 })
-    const suggestedImpact = resolvePlan(suggestion.map((uid) => hand.find((card) => card.uid === uid)!), { echoes: 1, seeds: 1 }).impact
-    const naiveImpact = resolvePlan(hand.slice(0, 3), { echoes: 1, seeds: 1 }).impact
-    expect(suggestion).toHaveLength(3)
-    expect(suggestedImpact).toBeGreaterThanOrEqual(naiveImpact)
+  it('changes the replay segment when the player chooses another past target', () => {
+    const timeline = cards(['seed', 'anchor', 'backflow'])
+    const fromFirst = resolvePlan(timeline, {}, 't0')
+    const fromSecond = resolvePlan(timeline, {}, 't1')
+    expect(fromFirst.events.filter((event) => event.title.startsWith('重放 ·'))).toHaveLength(2)
+    expect(fromSecond.events.filter((event) => event.title.startsWith('重放 ·'))).toHaveLength(1)
+    expect(fromFirst.impact).toBeGreaterThan(fromSecond.impact)
   })
+
+  it('offers distinct plans with reasons instead of one unexplained answer', () => {
+    const plans = strategyPlans(cards(['seed', 'anchor', 'echo', 'backflow', 'rewrite']), { seeds: 1 })
+    expect(plans).toHaveLength(2)
+    expect(plans.map((plan) => plan.id)).toContain('rewind')
+    expect(plans.every((plan) => plan.reasons.length >= 2)).toBe(true)
+    expect(plans.find((plan) => plan.id === 'rewind')?.rewindTargetUid).toBeTruthy()
+  })
+
 })

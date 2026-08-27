@@ -44,6 +44,8 @@ export interface FutureChoice {
   result: string
   bonus: RouteBonus
   openingCard: V1CardId
+  dialogue?: { speaker: string; text: string }
+  battleRule?: string
 }
 
 export interface PastChoice {
@@ -62,6 +64,8 @@ export interface ChapterDefinition {
   title: string
   subtitle: string
   story: string
+  opening?: { speaker: string; text: string }
+  ending?: { speaker: string; text: string }
   target: number
   pastChoices: PastChoice[]
 }
@@ -107,6 +111,16 @@ export interface ChainResolution {
   peakLabel: string
 }
 
+export interface StrategyPlan {
+  id: 'steady' | 'rewind' | 'alternate'
+  label: string
+  summary: string
+  reasons: string[]
+  uids: string[]
+  rewindTargetUid?: string
+  impact: number
+}
+
 export interface BattleStateV1 {
   chapterId: string
   round: number
@@ -115,6 +129,7 @@ export interface BattleStateV1 {
   bestChain: number
   hand: CardInstanceV1[]
   stagedUids: string[]
+  rewindTargetUid?: string
   nextUid: number
   routeBonus: RouteBonus
   openingCard: V1CardId
@@ -161,7 +176,8 @@ export type GameActionV1 =
   | { type: 'choose-past'; choiceId: string }
   | { type: 'choose-future'; choiceId: string }
   | { type: 'toggle-stage'; uid: string }
-  | { type: 'auto-stage' }
+  | { type: 'apply-strategy'; uids: string[]; rewindTargetUid?: string }
+  | { type: 'set-rewind-target'; uid: string }
   | { type: 'clear-stage' }
   | { type: 'resolve-chain' }
   | { type: 'continue-after-chain' }

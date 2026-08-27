@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { MAX_SOUND_VOLUME, MIN_SOUND_VOLUME } from '../game/audioSettings'
 import { CHAPTERS_V1, V1_CARDS } from './content'
-import { currentChapter, resolvePlan, suggestPlan } from './engine'
+import { currentChapter, resolvePlan, rewindCandidates, strategyPlans } from './engine'
 import type { CardInstanceV1, GameActionV1, GameStateV1, TimelineLane, V1CardId } from './types'
 import { useArchiveV1 } from './useArchiveV1'
 
@@ -34,14 +34,14 @@ function Manual({ onContinue, onSkip, onClose }: { onContinue: () => void; onSki
         <div className="manual__steps">
           <article><span>01 · 红色</span><strong>先选择过去</strong><p>就是“你先做什么”。选择后，下方能去的蓝色未来会改变。</p></article>
           <article><span>02 · 蓝色</span><strong>再选择结果</strong><p>就是“这件事后来变成什么”。每条路线都会给战斗加分。</p></article>
-          <article><span>03 · 战斗</span><strong>点击一键推荐</strong><p>系统会自动选好最高分的三张牌，你只要点击“开始结算”。</p></article>
+          <article><span>03 · 战斗</span><strong>先看选择理由</strong><p>辅助模式提供“稳妥得分”和“时间回传”等思路，并解释每张牌有什么用。</p></article>
         </div>
         <div className="plain-glossary">
           <div><b>档案</b><span>只是故事里对“关卡记录”的叫法。</span></div>
-          <div><b>未来回传</b><span>蓝色未来牌给下一张红色过去牌额外加分。</span></div>
+          <div><b>时间回传</b><span>选择前面一张过去牌，从那里开始重新结算整段时间线。</span></div>
           <div><b>红蓝切换</b><span>三张牌颜色来回变化，会自动获得额外分数。</span></div>
         </div>
-        <div className="manual__rule"><b>只记住一句话</b><span>红色是准备，蓝色是收分；看不懂牌时直接点“一键推荐”。</span></div>
+        <div className="manual__rule"><b>只记住一句话</b><span>红色负责准备，蓝色负责利用；辅助模式会解释关系，但不会只给一个唯一答案。</span></div>
         <div className="manual__actions">
           <button className="primary-button" onClick={onContinue}>开始分步教程</button>
           <button className="text-button" onClick={onSkip}>跳过教程，直接玩</button>
@@ -113,7 +113,7 @@ function TitleScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispat
       <aside className="title-preview" aria-label="双时间线玩法预览">
         <div className="preview-lane preview-lane--past"><span>过去</span><b>留下线索</b><i>01</i></div>
         <div className="preview-link"><span>改变路线</span><b>＋12</b></div>
-        <div className="preview-lane preview-lane--future"><span>未来</span><b>未来回传</b><i>02</i></div>
+        <div className="preview-lane preview-lane--future"><span>未来</span><b>时间回传</b><i>02</i></div>
         <div className="preview-burst"><small>本轮得分</small><strong>＋48</strong><span>连锁爆发</span></div>
       </aside>
       <footer className="title-stats">
@@ -189,6 +189,7 @@ function MapScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispatch
           <p className="eyebrow">第 {Number(chapter.number)} 关</p>
           <h2>{chapter.title}</h2>
           <p>{chapter.story}</p>
+          {chapter.opening && <div className="story-snippet"><span>{chapter.opening.speaker}</span><p>{chapter.opening.text}</p></div>}
           <div className="case-target"><span>通关需要达到</span><b>{chapter.target} 分</b></div>
           {state.run.currentPastId ? (
             <div className="route-hint"><b>你的选择改变了未来</b><p>{chapter.pastChoices.find((choice) => choice.id === state.run?.currentPastId)?.result}</p><span>现在选择下方任意一个蓝色结果。</span></div>
@@ -203,21 +204,20 @@ function MapScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispatch
 }
 
 function BattleCard({
-  instance, index, stagedIndex, recommended, disabled, onClick,
+  instance, index, stagedIndex, disabled, onClick,
 }: {
-  instance: CardInstanceV1; index: number; stagedIndex: number; recommended: boolean; disabled: boolean; onClick: () => void
+  instance: CardInstanceV1; index: number; stagedIndex: number; disabled: boolean; onClick: () => void
 }) {
   const selected = stagedIndex >= 0
   return (
     <button
-      className={`v1-card ${selected ? 'is-staged' : ''} ${recommended && !selected ? 'is-recommended' : ''}`}
+      className={`v1-card ${selected ? 'is-staged' : ''}`}
       onClick={onClick}
       disabled={disabled}
       aria-pressed={selected}
       aria-label={`${index + 1}：${V1_CARDS[instance.cardId].name}${selected ? `，连锁第 ${stagedIndex + 1} 张` : ''}`}
     >
       {selected && <span className="stage-order">{stagedIndex + 1}</span>}
-      {recommended && !selected && <span className="recommend-mark">推荐</span>}
       <CardFace cardId={instance.cardId} />
       <kbd>{index + 1}</kbd>
     </button>
@@ -229,11 +229,16 @@ function BattleScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispa
   const run = state.run
   if (!battle || !run) return null
   const chapter = currentChapter(run)
+  const pastChoice = chapter.pastChoices.find((choice) => choice.id === run.currentPastId)
+  const futureChoice = pastChoice?.futures.find((choice) => choice.id === run.currentFutureId)
   const stagedCards = battle.stagedUids
     .map((uid) => battle.hand.find((card) => card.uid === uid))
     .filter((card): card is CardInstanceV1 => Boolean(card))
-  const suggestion = suggestPlan(battle.hand, battle.routeBonus)
-  const preview = stagedCards.length > 0 ? resolvePlan(stagedCards, battle.routeBonus) : null
+  const plans = strategyPlans(battle.hand, battle.routeBonus)
+  const rewindTargets = rewindCandidates(stagedCards)
+  const containsBackflow = stagedCards.some((card) => card.cardId === 'backflow')
+  const needsRewindTarget = containsBackflow
+  const preview = stagedCards.length > 0 ? resolvePlan(stagedCards, battle.routeBonus, battle.rewindTargetUid) : null
   const percent = Math.min(100, Math.round((battle.impact / battle.target) * 100))
 
   return (
@@ -245,6 +250,13 @@ function BattleScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispa
           <div className="impact-meter__track"><i style={{ width: `${percent}%` }} /></div>
         </div>
       </header>
+
+      {futureChoice?.dialogue && (
+        <section className="battle-story">
+          <div><span>{futureChoice.dialogue.speaker}</span><p>{futureChoice.dialogue.text}</p></div>
+          {futureChoice.battleRule && <aside><b>这条路线改变了战斗</b><p>{futureChoice.battleRule}</p></aside>}
+        </section>
+      )}
 
       <section className="chain-stage" aria-label="三张牌连锁区">
         <div className="lane-energy lane-energy--past"><TimelineMark lane="past" /><b>{(battle.routeBonus.seeds ?? 0) + (battle.routeBonus.anchors ?? 0)}</b><small>准备加成</small></div>
@@ -263,6 +275,24 @@ function BattleScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispa
         <div className="lane-energy lane-energy--future"><TimelineMark lane="future" /><b>{(battle.routeBonus.witnesses ?? 0) + (battle.routeBonus.echoes ?? 0)}</b><small>收分加成</small></div>
       </section>
 
+      {!battle.resolution && containsBackflow && (
+        <section className="rewind-picker" aria-label="选择时间回传目标">
+          <div><p className="eyebrow">未来影响过去</p><h2>时间要倒回哪一张过去牌？</h2><span>被选中的牌，以及它后面的牌，都会重新结算一次。</span></div>
+          {rewindTargets.length > 0
+            ? rewindTargets.map((instance) => (
+                <button
+                  key={instance.uid}
+                  className={battle.rewindTargetUid === instance.uid ? 'is-selected' : ''}
+                  aria-pressed={battle.rewindTargetUid === instance.uid}
+                  onClick={() => dispatch({ type: 'set-rewind-target', uid: instance.uid })}
+                >
+                  <span>{V1_CARDS[instance.cardId].glyph}</span><b>倒回「{V1_CARDS[instance.cardId].name}」</b><small>从第 {stagedCards.findIndex((card) => card.uid === instance.uid) + 1} 张开始重放</small>
+                </button>
+              ))
+            : <p className="rewind-picker__warning">现在还没有可回去的时刻。请把「时间回传」放到一张红色过去牌后面。</p>}
+        </section>
+      )}
+
       {battle.resolution ? (
         <section className="resolution-panel" aria-live="polite">
           <div className="resolution-burst"><span>{battle.resolution.peakLabel}</span><strong>+{battle.resolution.chain}</strong><small>本轮得分</small></div>
@@ -279,11 +309,29 @@ function BattleScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispa
         </section>
       ) : (
         <>
+          <section className="strategy-plans" aria-label="带理由的参考打法">
+            <header><div><p className="eyebrow">辅助模式</p><h2>选择一种思路，不是唯一答案</h2></div><p>每套方案都会告诉你为什么这样放。采用后仍可自由换牌。</p></header>
+            <div>
+              {plans.map((plan) => (
+                <article className={`strategy-plan strategy-plan--${plan.id}`} key={plan.id}>
+                  <div className="strategy-plan__title"><span>{plan.label}</span><strong>预计 {plan.impact} 分</strong></div>
+                  <p>{plan.summary}</p>
+                  <div className="strategy-plan__cards">
+                    {plan.uids.map((uid, index) => {
+                      const instance = battle.hand.find((card) => card.uid === uid)
+                      return instance ? <span key={uid}><i>{index + 1}</i>{V1_CARDS[instance.cardId].name}</span> : null
+                    })}
+                  </div>
+                  <ul>{plan.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                  <button className="secondary-button" onClick={() => dispatch({ type: 'apply-strategy', uids: plan.uids, rewindTargetUid: plan.rewindTargetUid })}>采用这个思路</button>
+                </article>
+              ))}
+            </div>
+          </section>
           <section className="battle-controls">
-            <div><p><b>选择三张牌，然后开始结算。</b> 红蓝颜色交替得越多，分数通常越高。</p><span>看不懂就点右边“一键推荐” · 快捷键 A</span></div>
+            <div><p><b>选择三张牌，然后开始结算。</b> 辅助模式解释关系，但最后顺序由你决定。</p><span>快捷键：1—5 选牌 · Enter 结算</span></div>
             <button className="secondary-button" onClick={() => dispatch({ type: 'clear-stage' })}>清空</button>
-            <button className="auto-button" onClick={() => dispatch({ type: 'auto-stage' })}><span>系统自动选最高分</span><b>一键推荐</b><kbd>A</kbd></button>
-            <button className="primary-button" disabled={stagedCards.length === 0} onClick={() => dispatch({ type: 'resolve-chain' })}>开始结算 <kbd>Enter</kbd></button>
+            <button className="primary-button" disabled={stagedCards.length !== 3 || (needsRewindTarget && !battle.rewindTargetUid)} onClick={() => dispatch({ type: 'resolve-chain' })}>开始结算 <kbd>Enter</kbd></button>
           </section>
           <section className="hand" aria-label="本轮手牌">
             {battle.hand.map((instance, index) => (
@@ -292,7 +340,6 @@ function BattleScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispa
                 instance={instance}
                 index={index}
                 stagedIndex={battle.stagedUids.indexOf(instance.uid)}
-                recommended={suggestion.includes(instance.uid)}
                 disabled={false}
                 onClick={() => dispatch({ type: 'toggle-stage', uid: instance.uid })}
               />
@@ -307,6 +354,8 @@ function BattleScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispa
 function RewardScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispatch }) {
   if (state.screen.name !== 'reward' || !state.run || !state.battle) return null
   const chapter = currentChapter(state.run)
+  const pastChoice = chapter.pastChoices.find((choice) => choice.id === state.run?.currentPastId)
+  const futureChoice = pastChoice?.futures.find((choice) => choice.id === state.run?.currentFutureId)
   return (
     <main className="reward-screen">
       <section className="reward-summary">
@@ -314,6 +363,10 @@ function RewardScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispa
         <div className={`rank rank--${state.screen.rank}`}>{state.screen.rank}</div>
         <h1>{state.screen.rank === 'S' ? '超级爆发！' : state.screen.rank === 'A' ? '漂亮过关！' : '已启用新手通关保护'}</h1>
         <p>最高单轮得分 <b>{state.battle.bestChain}</b> · {state.battle.round} 轮完成</p>
+        {(futureChoice || chapter.ending) && <div className="reward-story">
+          {futureChoice && <p><b>这条未来：</b>{futureChoice.result}</p>}
+          {chapter.ending && <blockquote><span>{chapter.ending.speaker}</span>{chapter.ending.text}</blockquote>}
+        </div>}
       </section>
       <section className="reward-pick">
         <header><p className="eyebrow">选择一张加入牌库</p><h2>带走新的失控手段</h2></header>
@@ -356,7 +409,7 @@ function EndingScreen({ state, dispatch }: { state: GameStateV1; dispatch: Dispa
 }
 
 interface BeginnerGuideStep {
-  id: 'past' | 'future' | 'auto' | 'resolve' | 'score' | 'reward'
+  id: 'past' | 'future' | 'plan' | 'resolve' | 'score' | 'reward'
   count: string
   title: string
   body: string
@@ -371,16 +424,16 @@ function guideStepFor(state: GameStateV1): BeginnerGuideStep | null {
     return { id: 'future', count: '2 / 5', title: '再点一个蓝色结果', body: '蓝色代表未来，也就是“这件事后来造成什么结果”。', tip: '路线会自动给下一场战斗加分。' }
   }
   if (state.screen.name === 'battle' && !state.battle?.resolution && state.battle?.stagedUids.length === 0) {
-    return { id: 'auto', count: '3 / 5', title: '第一次先用“一键推荐”', body: '系统会替你从五张牌中挑出最高分的三张，并排好顺序。', tip: '以后想研究时，再自己换牌即可。' }
+    return { id: 'plan', count: '3 / 5', title: '先比较两种参考打法', body: '“稳妥得分”容易理解，“时间回传”会重放过去。每套方案都写明为什么这样选。', tip: '选择一种思路后，仍然可以替换任何一张牌。' }
   }
   if (state.screen.name === 'battle' && !state.battle?.resolution) {
-    return { id: 'resolve', count: '4 / 5', title: '看看预计分数，然后结算', body: '中间显示这三张牌预计能得到多少分。点击“开始结算”就行。', tip: '牌的红蓝颜色切换越多，通常分数越高。' }
+    return { id: 'resolve', count: '4 / 5', title: '确认理由和回传目标', body: '中间显示预计得分。若使用时间回传，还需要亲自选择要倒回的过去牌。', tip: '你可以先采用参考思路，再换掉其中任意一张牌。' }
   }
   if (state.screen.name === 'battle' && state.battle?.resolution) {
     return { id: 'score', count: '5 / 5', title: '这些记录只是在解释加分', body: '右侧每一行都写着分数从哪里来。上方进度达到目标就能过关。', tip: '没达到也没关系，继续下一轮即可。' }
   }
   if (state.screen.name === 'reward') {
-    return { id: 'reward', count: '完成', title: '教程完成！', body: '现在选一张看起来顺眼的牌。之后仍然可以一直使用“一键推荐”。', tip: '随时点击右上角“新手教程”重新查看。' }
+    return { id: 'reward', count: '完成', title: '教程完成！', body: '现在选一张看起来顺眼的牌。辅助模式会继续解释不同打法，但选择仍然属于你。', tip: '随时点击右上角“新手教程”重新查看。' }
   }
   return null
 }
@@ -441,7 +494,6 @@ export function ArchiveV1() {
         const card = battleKeys.hand[Number(event.key) - 1]
         if (card) dispatch({ type: 'toggle-stage', uid: card.uid })
       }
-      if (event.key.toLowerCase() === 'a' && !battleKeys.resolution) dispatch({ type: 'auto-stage' })
       if (event.key === 'Enter') dispatch({ type: battleKeys.resolution ? 'continue-after-chain' : 'resolve-chain' })
     }
     window.addEventListener('keydown', onKeyDown)

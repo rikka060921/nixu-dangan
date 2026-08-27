@@ -7,7 +7,7 @@ import type { GameActionV1 } from './types'
 
 function cueFor(action: GameActionV1['type']) {
   if (action === 'toggle-stage') return 'place' as const
-  if (action === 'auto-stage' || action === 'clear-stage') return 'select' as const
+  if (action === 'apply-strategy' || action === 'set-rewind-target' || action === 'clear-stage') return 'select' as const
   if (action === 'resolve-chain') return 'resolve' as const
   if (action === 'choose-reward') return 'reward' as const
   if (action === 'toggle-sound') return 'toggle' as const

@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
+import { strategyPlans } from './engine'
 import { DEFAULT_META_V1 } from './storage'
 import { gameReducerV1 } from './reducer'
 import type { GameStateV1 } from './types'
 
 describe('1.x reducer safety rails', () => {
-  it('guarantees closure with an emergency rewind on the third round', () => {
+  it('lowers the target after three failed rounds without filling the score automatically', () => {
     const state: GameStateV1 = {
       screen: { name: 'battle' },
       meta: DEFAULT_META_V1,
@@ -17,18 +18,28 @@ describe('1.x reducer safety rails', () => {
       },
       battle: {
         chapterId: 'missing-murder', round: 3, target: 999, impact: 0, bestChain: 0,
-        hand: [{ uid: 'c1', cardId: 'seed' }], stagedUids: ['c1'], nextUid: 2,
+        hand: [
+          { uid: 'c1', cardId: 'seed' },
+          { uid: 'c2', cardId: 'anchor' },
+          { uid: 'c3', cardId: 'echo' },
+        ],
+        stagedUids: ['c1', 'c2', 'c3'], nextUid: 4,
         routeBonus: {}, openingCard: 'seed', won: false, emergencyRewind: false,
       },
     }
-    const next = gameReducerV1(state, { type: 'resolve-chain' })
-    expect(next.battle?.won).toBe(true)
-    expect(next.battle?.impact).toBe(999)
+    const resolved = gameReducerV1(state, { type: 'resolve-chain' })
+    expect(resolved.battle?.won).toBe(false)
+    expect(resolved.battle?.impact).toBeLessThan(999)
+
+    const next = gameReducerV1(resolved, { type: 'continue-after-chain' })
+    expect(next.battle?.round).toBe(4)
+    expect(next.battle?.target).toBeLessThan(999)
+    expect(next.battle?.impact).toBe(resolved.battle?.impact)
     expect(next.battle?.emergencyRewind).toBe(true)
-    expect(next.battle?.resolution?.events.at(-1)?.kind).toBe('rewind')
+    expect(next.notice).toContain('没有自动补分')
   })
 
-  it('can finish all four chapters using only the simple auto-play loop', () => {
+  it('can finish all four chapters by adopting and resolving explained plans', () => {
     let state: GameStateV1 = {
       screen: { name: 'title' }, meta: DEFAULT_META_V1, seedInput: 'FULL-AUTO-RUN',
       resumable: null, run: null, battle: null,
@@ -44,7 +55,12 @@ describe('1.x reducer safety rails', () => {
         state = gameReducerV1(state, { type: 'choose-future', choiceId: futureId })
       } else if (state.screen.name === 'battle') {
         if (!state.battle?.resolution) {
-          state = gameReducerV1(state, { type: 'auto-stage' })
+          const plan = strategyPlans(state.battle!.hand, state.battle!.routeBonus)[0]
+          state = gameReducerV1(state, {
+            type: 'apply-strategy',
+            uids: plan.uids,
+            rewindTargetUid: plan.rewindTargetUid,
+          })
           state = gameReducerV1(state, { type: 'resolve-chain' })
         } else state = gameReducerV1(state, { type: 'continue-after-chain' })
       } else if (state.screen.name === 'reward') {

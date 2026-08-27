@@ -6,6 +6,7 @@ import type {
   ChainResolution,
   RouteBonus,
   RunStateV1,
+  StrategyPlan,
   V1CardId,
 } from './types'
 
@@ -91,7 +92,13 @@ function addEvent(events: ChainEvent[], event: ChainEvent): number {
   return event.gain
 }
 
-export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}): ChainResolution {
+export function rewindCandidates(cards: CardInstanceV1[]): CardInstanceV1[] {
+  const rewindIndex = cards.findIndex((instance) => instance.cardId === 'backflow')
+  if (rewindIndex <= 0) return []
+  return cards.slice(0, rewindIndex).filter((instance) => V1_CARDS[instance.cardId].lane === 'past')
+}
+
+export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}, rewindTargetUid?: string): ChainResolution {
   let seeds = routeBonus.seeds ?? 0
   let witnesses = routeBonus.witnesses ?? 0
   let anchors = routeBonus.anchors ?? 0
@@ -112,7 +119,7 @@ export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}
     })
   }
 
-  for (const instance of cards) {
+  const processCard = (instance: CardInstanceV1, replaying = false) => {
     const card = V1_CARDS[instance.cardId]
     if (previousLane && previousLane !== card.lane) {
       relays += 1
@@ -149,7 +156,6 @@ export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}
         break
       case 'echo':
         gain += pastCharge + seeds * 2
-        echoes += 1
         break
       case 'testimony':
         gain += witnesses * 4
@@ -158,7 +164,6 @@ export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}
         gain += seeds * 4
         break
       case 'backflow':
-        echoes += 2
         gain += 4 + relays
         break
       case 'rewrite':
@@ -166,8 +171,8 @@ export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}
           const echoGain = echoes * (pastCharge + 3)
           gain += echoGain
           addEvent(events, {
-            kind: 'echo', lane: 'past', title: '未来回传',
-            detail: `${echoes} 次回传让这张过去牌获得额外分数。`, gain: echoGain,
+            kind: 'echo', lane: 'past', title: '路线助力',
+            detail: `你选择的未来提供了 ${echoes} 点信息，让这张过去牌额外加分。`, gain: echoGain,
           })
           echoes = 0
         } else gain += anchors * 3
@@ -187,18 +192,36 @@ export function resolvePlan(cards: CardInstanceV1[], routeBonus: RouteBonus = {}
       const echoGain = echoes * (card.power + seeds + 2)
       gain += echoGain
       addEvent(events, {
-        kind: 'echo', lane: 'past', title: '未来回传',
-        detail: `${echoes} 次回传让「${card.name}」再次加分。`, gain: echoGain,
+        kind: 'echo', lane: 'past', title: '路线助力',
+        detail: `你选择的未来提供了 ${echoes} 点信息，让「${card.name}」额外加分。`, gain: echoGain,
       })
       echoes = 0
     }
 
     chain += addEvent(events, {
-      kind: 'card', lane: card.lane, title: card.name,
-      detail: card.lane === 'past' ? `过去积蓄 ${pastCharge}` : `未来积蓄 ${futureCharge}`,
+      kind: 'card', lane: card.lane, title: replaying ? `重放 · ${card.name}` : card.name,
+      detail: replaying
+        ? `时间倒回后，「${card.name}」再次生效。`
+        : card.lane === 'past' ? `过去准备增加到 ${pastCharge}` : `未来效果结算，当前积累 ${futureCharge}`,
       gain,
     })
     previousLane = card.lane
+  }
+
+  for (const instance of cards) processCard(instance)
+
+  const rewindIndex = cards.findIndex((instance) => instance.cardId === 'backflow')
+  if (rewindIndex > 0) {
+    const candidates = rewindCandidates(cards)
+    const target = candidates.find((instance) => instance.uid === rewindTargetUid) ?? candidates[0]
+    const targetIndex = target ? cards.findIndex((instance) => instance.uid === target.uid) : -1
+    if (target && targetIndex >= 0) {
+      addEvent(events, {
+        kind: 'rewind', lane: 'future', title: '时间倒流',
+        detail: `未来把时间拉回「${V1_CARDS[target.cardId].name}」，从这里开始重新结算。`, gain: 0,
+      })
+      for (let index = targetIndex; index < rewindIndex; index += 1) processCard(cards[index], true)
+    }
   }
 
   const closure = Math.floor((pastCharge + futureCharge) / 2) + anchors + relays * 2
@@ -229,18 +252,84 @@ function permutations<T>(items: T[], length: number): T[][] {
   return result
 }
 
-export function suggestPlan(hand: CardInstanceV1[], routeBonus: RouteBonus): string[] {
-  const length = Math.min(3, hand.length)
-  let best: CardInstanceV1[] = hand.slice(0, length)
+interface PlanCandidate {
+  cards: CardInstanceV1[]
+  targetUid?: string
+  impact: number
+  hasRewind: boolean
+  relays: number
+}
+
+function evaluatePlan(cards: CardInstanceV1[], routeBonus: RouteBonus): PlanCandidate {
+  const candidates = rewindCandidates(cards)
+  const targets = candidates.length > 0 ? candidates.map((card) => card.uid) : [undefined]
+  let bestTarget = targets[0]
   let bestImpact = -1
-  for (const plan of permutations(hand, length)) {
-    const impact = resolvePlan(plan, routeBonus).impact
+  for (const target of targets) {
+    const impact = resolvePlan(cards, routeBonus, target).impact
     if (impact > bestImpact) {
-      best = plan
       bestImpact = impact
+      bestTarget = target
     }
   }
-  return best.map((card) => card.uid)
+  let relays = 0
+  for (let index = 1; index < cards.length; index += 1) {
+    if (V1_CARDS[cards[index - 1].cardId].lane !== V1_CARDS[cards[index].cardId].lane) relays += 1
+  }
+  return { cards, targetUid: bestTarget, impact: bestImpact, hasRewind: candidates.length > 0, relays }
+}
+
+export function strategyPlans(hand: CardInstanceV1[], routeBonus: RouteBonus): StrategyPlan[] {
+  const length = Math.min(3, hand.length)
+  const candidates = permutations(hand, length)
+    .filter((cards) => {
+      const backflowCount = cards.filter((card) => card.cardId === 'backflow').length
+      return backflowCount === 0 || (backflowCount === 1 && rewindCandidates(cards).length > 0)
+    })
+    .map((cards) => evaluatePlan(cards, routeBonus))
+  const byImpact = (a: PlanCandidate, b: PlanCandidate) => b.impact - a.impact
+  const steady = candidates.filter((candidate) => !candidate.hasRewind).sort(byImpact)[0]
+  const rewind = candidates.filter((candidate) => candidate.hasRewind).sort(byImpact)[0]
+  const selected: StrategyPlan[] = []
+
+  if (steady) {
+    const names = steady.cards.map((card) => V1_CARDS[card.cardId].name)
+    selected.push({
+      id: 'steady', label: '稳妥得分', summary: '直接利用当前路线资源，结果最容易理解。',
+      reasons: [
+        `${names.join(' → ')}，每一步都会立即产生分数。`,
+        steady.relays > 0 ? `红蓝切换 ${steady.relays} 次，会获得额外奖励。` : '同色牌连续使用，操作稳定但切换奖励较少。',
+      ],
+      uids: steady.cards.map((card) => card.uid), impact: steady.impact,
+    })
+  }
+
+  if (rewind) {
+    const names = rewind.cards.map((card) => V1_CARDS[card.cardId].name)
+    const target = rewind.cards.find((card) => card.uid === rewind.targetUid)
+    selected.push({
+      id: 'rewind', label: '时间回传', summary: '让未来真正改写过去，重放一段时间线。',
+      reasons: [
+        `${names.join(' → ')}。`,
+        target ? `最后把时间拉回「${V1_CARDS[target.cardId].name}」，它和后面的牌会再次结算。` : '需要把时间回传放在过去牌之后。',
+      ],
+      uids: rewind.cards.map((card) => card.uid), rewindTargetUid: rewind.targetUid, impact: rewind.impact,
+    })
+  }
+
+  if (selected.length < 2) {
+    const used = new Set(selected.map((plan) => plan.uids.join(',')))
+    const alternate = candidates.sort(byImpact).find((candidate) => !used.has(candidate.cards.map((card) => card.uid).join(',')))
+    if (alternate) {
+      selected.push({
+        id: 'alternate', label: '另一种尝试', summary: '不是最高分，但能看见不同卡牌之间的关系。',
+        reasons: [`${alternate.cards.map((card) => V1_CARDS[card.cardId].name).join(' → ')}。`, '你可以采用后再替换其中任意一张牌。'],
+        uids: alternate.cards.map((card) => card.uid), rewindTargetUid: alternate.targetUid, impact: alternate.impact,
+      })
+    }
+  }
+
+  return selected
 }
 
 export function rewardOptions(rngState: number, count = 3): { options: V1CardId[]; rngState: number } {

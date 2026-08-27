@@ -30,7 +30,7 @@ describe('1.x application flow', () => {
     expect(screen.getByRole('dialog', { name: '先做一件事，再看它造成什么结果' })).toBeInTheDocument()
     expect(screen.getByText('先选择过去')).toBeInTheDocument()
     expect(screen.getByText('再选择结果')).toBeInTheDocument()
-    expect(screen.getAllByText('未来回传').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('时间回传').length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getByRole('button', { name: '开始分步教程' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -40,10 +40,10 @@ describe('1.x application flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /救下监察官/ }))
     expect(screen.getByRole('heading', { name: '再点一个蓝色结果' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /活人法庭/ }))
-    expect(screen.getByRole('heading', { name: '第一次先用“一键推荐”' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '先比较两种参考打法' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /一键推荐/ }))
-    expect(screen.getByRole('heading', { name: '看看预计分数，然后结算' })).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: '采用这个思路' })[0])
+    expect(screen.getByRole('heading', { name: '确认理由和回传目标' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /^开始结算/ }))
     expect(screen.getByRole('heading', { name: '这些记录只是在解释加分' })).toBeInTheDocument()
 
@@ -69,12 +69,14 @@ describe('1.x application flow', () => {
     expect(screen.queryByRole('button', { name: /完整罪证/ })).not.toBeInTheDocument()
   })
 
-  it('auto-stages three cards and resolves a visible causal chain', () => {
+  it('adopts an explained plan and resolves a visible causal chain', () => {
     render(<App />)
     enterFirstBattle()
     const hand = screen.getByRole('region', { name: '本轮手牌' })
 
-    fireEvent.click(screen.getByRole('button', { name: /一键推荐/ }))
+    const plans = screen.getByRole('region', { name: '带理由的参考打法' })
+    expect(within(plans).getAllByRole('listitem').length).toBeGreaterThanOrEqual(4)
+    fireEvent.click(within(plans).getAllByRole('button', { name: '采用这个思路' })[0])
     expect(within(hand).getAllByRole('button', { pressed: true })).toHaveLength(3)
     expect(screen.getByText('预计得到').parentElement).not.toHaveTextContent('—')
 
@@ -84,12 +86,14 @@ describe('1.x application flow', () => {
     expect(screen.getByRole('button', { name: /过关！选择奖励|继续下一轮/ })).toBeInTheDocument()
   })
 
-  it('supports keyboard auto-play and keeps the 300 percent global volume setting', () => {
+  it('supports keyboard card selection and keeps the 300 percent global volume setting', () => {
     render(<App />)
     enterFirstBattle()
     const hand = screen.getByRole('region', { name: '本轮手牌' })
 
-    fireEvent.keyDown(window, { key: 'a' })
+    fireEvent.keyDown(window, { key: '1' })
+    fireEvent.keyDown(window, { key: '2' })
+    fireEvent.keyDown(window, { key: '3' })
     expect(within(hand).getAllByRole('button', { pressed: true })).toHaveLength(3)
     fireEvent.keyDown(window, { key: 'Enter' })
     expect(screen.getByText('本轮得分')).toBeInTheDocument()
