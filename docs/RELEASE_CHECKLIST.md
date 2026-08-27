@@ -26,5 +26,5 @@
 - [x] `pnpm build:pages`
 - [x] `pnpm package:offline`
 - [x] 验证离线 HTML 不引用外部资源。
-- [ ] 推送主分支与归档/发行标签。
-- [ ] 验证 GitHub Pages 在线地址。
+- [x] 推送主分支与 `v1.0.0-alpha.3` 发行标签。
+- [x] GitHub Pages 部署成功，在线资源包含新的参考打法、回传目标与剧情文案。
